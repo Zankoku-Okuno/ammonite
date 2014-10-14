@@ -17,13 +17,19 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Language.Ammonite.Syntax.Concrete,
-                       Language.Ammonite.Syntax.Parser
-  -- other-modules:       
+  exposed-modules:     Language.Ammonite.Syntax.Abstract,
+                       Language.Ammonite.Syntax.Concrete,
+                       Language.Ammonite.Syntax.Parser,
+                       Language.Ammonite.Syntax.Sugar
+  other-modules:       Language.Ammonite.Gensym,
+                       Language.Ammonite.Syntax.Sugar.AnonPoint
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
+                       containers ==0.5.*,
+                       mtl ==2.*,
                        bytestring ==0.10.*,
                        text ==0.11.*,
+                       symbol ==0.2.*,
                        luthor ==0.0.1
   -- hs-source-dirs:      
   default-language:    Haskell2010

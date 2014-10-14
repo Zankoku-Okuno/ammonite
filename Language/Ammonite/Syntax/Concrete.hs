@@ -1,11 +1,11 @@
 module Language.Ammonite.Syntax.Concrete 
-	( TransUnit
-	, Directive
-	, Syntax
-	, SyntaxCore(..)
-	, Route(..)
-	, SubvalueAction(..)
-	) where
+    ( TransUnit
+    , Directive
+    , Syntax
+    , SyntaxCore(..)
+    , Route(..)
+    , SubvalueAction(..)
+    ) where
 
 import Data.Ratio (Rational, (%))
 import Data.Text (Text)
@@ -19,6 +19,7 @@ type Directive = String
 type Syntax = (SyntaxCore, SourcePos)
 data SyntaxCore =
       Parens Syntax
+    | AnonLambda [Syntax] Syntax
     | Name String
     | AnonPoint
     | Unit
@@ -30,10 +31,8 @@ data SyntaxCore =
     | Quote Syntax
     | Unquote Syntax
     | List [Syntax]
-    --TODO? range `[1 ... 3]` and `[1, 3 ... 30]`
     | Struct [(String, Syntax)]
     | Record [Syntax] (Maybe Syntax) [(String, Syntax)] (Maybe Syntax)
-    --TODO? comprehensions
     | Block [Syntax]
     | Combine Syntax [Syntax]
     | DotExpr Syntax

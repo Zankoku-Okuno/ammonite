@@ -4,6 +4,7 @@ module Language.Ammonite.Syntax.Parser
     , parse
     , file
     , expr
+    , strip
     ) where
 
 import Data.Maybe
@@ -295,3 +296,6 @@ sepComma = ws0 *> comma *> sep
 
 sepSemicolon :: Parser ()
 sepSemicolon = ws0 *> semicolon *> sep
+
+strip :: Parser a -> Parser a
+strip = between2 ws0
