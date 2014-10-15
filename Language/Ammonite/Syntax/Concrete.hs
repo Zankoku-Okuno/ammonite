@@ -2,6 +2,7 @@ module Language.Ammonite.Syntax.Concrete
     ( TransUnit
     , Directive
     , Syntax
+    , SourcePos
     , SyntaxCore(..)
     , Route(..)
     , SubvalueAction(..)
@@ -23,20 +24,19 @@ data SyntaxCore =
     | Name String
     | AnonPoint
     | Unit
-    | Void
     | Number Rational
     | Chr Char
     | TextStr Text [(Syntax, Text)]
     | ByteStr ByteString
-    | Quote Syntax
-    | Unquote Syntax
     | List [Syntax]
     | Struct [(String, Syntax)]
     | Record [Syntax] (Maybe Syntax) [(String, Syntax)] (Maybe Syntax)
-    | Block [Syntax]
-    | Combine Syntax [Syntax]
-    | DotExpr Syntax
     | Subvalue Syntax [Route] SubvalueAction
+    | Quote Syntax
+    | Unquote Syntax
+    | Combine [Syntax]
+    | DotExpr Syntax
+    | Block [Syntax]
     deriving (Eq, Show)
 
 data Route =

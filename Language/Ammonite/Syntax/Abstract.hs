@@ -3,6 +3,7 @@ module Language.Ammonite.Syntax.Abstract where
 import Data.Symbol
 import Data.Ratio (Rational)
 import Data.Text (Text)
+import Data.ByteString (ByteString)
 import Data.Sequence (Seq)
 import Data.Map (Map)
 import Data.IORef (IORef)
@@ -26,7 +27,9 @@ data Value sysval =
     -- Structured Types
       UnitVal
     | NumVal Rational
+    | ChrVal Char
     | StrVal Text
+    | BytesVal ByteString
     | ListVal (Seq (Value sysval))
     | StructVal (Map Name (Value sysval))
     | RecordVal
@@ -78,28 +81,30 @@ data Value sysval =
 data Prim =
       Lambda
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
+    deriving (Eq, Show)
 
-type Expr sysval = (SourceLoc, ExprCore sysval)
+type Expr sysval = (ExprCore sysval, SourceLoc)
 data ExprCore sysval =
-      Literal (Value sysval)
+      Lit (Value sysval)
     | Name Name
     | StrExpr Text [(Expr sysval, Text)]
-    | ListExpr (Seq (Expr sysval))
+    | ListExpr [Expr sysval]
     | StructExpr (Map Name (Expr sysval))
     | RecordExpr
-        { rePos :: Seq (Expr sysval)
-        , reVarPos :: Expr sysval
+        { rePos :: [Expr sysval]
+        , reVarPos :: Maybe (Expr sysval)
         , reKw :: (Map Name (Expr sysval))
-        , reVarKw :: Expr sysval
+        , reVarKw :: Maybe (Expr sysval)
         }
-    | Extant (Expr sysval) [SubValue sysval]
-    | Access (Expr sysval) [SubValue sysval]
-    | Update (Expr sysval) [SubValue sysval] (Expr sysval)
-    | Delete (Expr sysval) [SubValue sysval]
+    | Exists (Expr sysval) [Route sysval]
+    | Access (Expr sysval) [Route sysval]
+    | Update (Expr sysval) [Route sysval] (Expr sysval)
+    | Delete (Expr sysval) [Route sysval]
     | QuotedExpr (Expr sysval)
     | UnquotedExpr (Expr sysval)
     | Ap [Expr sysval]
-data SubValue sysval =
+    | Block [Expr sysval]
+data Route sysval =
       Field Name
     | Index (Expr sysval)
     | Slice (Maybe (Expr sysval)) (Maybe (Expr sysval))

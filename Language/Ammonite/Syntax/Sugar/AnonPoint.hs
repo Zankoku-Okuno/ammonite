@@ -32,7 +32,6 @@ _go (AnonLambda _ _) = error "precondition violated: syntax should not be run th
 _go x@(Name _) = pure x
 _go AnonPoint = error "internal error: Syntax.Sugar.AnonPoint._go called on Syntax.Concrete.AnonPoint"
 _go x@Unit = pure x
-_go x@Void = pure x
 _go x@(Number _) = pure x
 _go x@(Chr _) = pure x
 _go (TextStr txt rest) = 
@@ -61,10 +60,8 @@ _go (Record xs varpos kvs varkw) = do
         x' <- go x
         pure (name, x')
 _go (Block stmts) = Block <$> go `mapM` stmts
-_go (Combine f xs) = do
-    f' <- go f
-    xs' <- go `mapM` xs
-    pure $ Combine f' xs'
+_go (Combine xs) | length xs < 2 = error "precondition violation: combine must have at least two subexpressions"
+_go (Combine xs) = Combine <$> go `mapM` xs
 _go (DotExpr x) = DotExpr <$> go x
 _go (Subvalue x route act) = do
     x' <- go x

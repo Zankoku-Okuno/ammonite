@@ -20,7 +20,8 @@ library
   exposed-modules:     Language.Ammonite.Syntax.Abstract,
                        Language.Ammonite.Syntax.Concrete,
                        Language.Ammonite.Syntax.Parser,
-                       Language.Ammonite.Syntax.Sugar
+                       Language.Ammonite.Syntax.Sugar,
+                       Language.Ammonite.Syntax.Printer
   other-modules:       Language.Ammonite.Gensym,
                        Language.Ammonite.Syntax.Sugar.AnonPoint
   -- other-extensions:    
@@ -30,6 +31,7 @@ library
                        bytestring ==0.10.*,
                        text ==0.11.*,
                        symbol ==0.2.*,
+                       parsec ==3.*,
                        luthor ==0.0.1
   -- hs-source-dirs:      
   default-language:    Haskell2010

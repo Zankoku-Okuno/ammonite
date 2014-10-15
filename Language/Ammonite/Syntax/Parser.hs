@@ -54,7 +54,7 @@ applyExpr inline coreExpr = withPosition $ do
     es <- anExpr coreExpr `sepBy1` (if inline then ilws else ws)
     return $ case es of
         [e] -> fst e
-        (f:args) -> Combine f args
+        args -> Combine args
 
 anExpr :: Parser Syntax -> Parser Syntax
 anExpr coreExpr = withPosition $ choice
@@ -249,7 +249,7 @@ indentExpr = withPosition $ do
                 (stmts, pos) -> (Block stmts, pos)
         return $ case operator of
             Nothing -> fst block
-            Just operator -> Combine operator [block]
+            Just operator -> Combine [operator, block]
 --in postorder: 
     --group from before colon to dedent,
     --group after the expresssion immediately following colon (if any) and at dedent
