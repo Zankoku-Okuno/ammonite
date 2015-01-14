@@ -13,7 +13,7 @@ import Language.Ammonite.Gensym (Gensym)
 type SourceFile = Text
 type SourceLine = Int
 type SourceLoc = (SourceFile, SourceLine)
-type DefMetadata = (SourceLoc, Maybe Name)
+type DefMetadata = (SourceLoc, Maybe Name, Text)
 
 type Name = Symbol --FIXME this should be a newtype w/ smart constructors/deconstructors
 type TypeTag = (Gensym, DefMetadata)
@@ -33,8 +33,8 @@ data Value sysval =
     | ListVal (Seq (Value sysval))
     | StructVal (Map Name (Value sysval))
     | RecordVal
-        { rvPos :: Seq (Value sysval)
-        , rvKw :: (Map Name (Value sysval))
+        { rvPos :: Seq (Value sysval) --FIXME this should be a Map Integer (Value sysval)
+        , rvKw :: Map Name (Value sysval)
         }
     -- Reference Types
     -- TODO reference types: single cell vs. contiguous array, thread-safe vs. thread-local vs. non-threaded
@@ -52,11 +52,7 @@ data Value sysval =
     | TypeVal TypeTag
     | AbsVal TypeTag (Value sysval)
     -- First-classs Modules
-    | ModuleVal
-        { modDocstr :: Maybe Text
-        , modExport :: Map Name (Value sysval, Maybe Text)
-        , modMetadata :: DefMetadata
-        }
+    | ModuleVal [ModuleItem sysval] DefMetadata
     -- First-class Control
     | CueVal Gensym DefMetadata
     | Subcont (Continuation sysval)
@@ -73,11 +69,13 @@ data Value sysval =
         , sysopArguments :: [Value sysval]
         , sysopExecute :: Value sysval -> IO (Either Text (Value sysval))
         }
-
     --TODO as the language matures, I expect some extensions to become built-in
         -- float vals, big decimal
         -- HandleVal (file handles)
         -- dynamic C library, Ctypes (incl. fixed-width ints and words)
+data ModuleItem sysval = Data Name (Value sysval)
+                       | Docstr Text
+
 data Prim =
       Lambda
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
