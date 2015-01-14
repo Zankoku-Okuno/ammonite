@@ -21,7 +21,8 @@ library
                        Language.Ammonite.Syntax.Concrete,
                        Language.Ammonite.Syntax.Parser,
                        Language.Ammonite.Syntax.Sugar,
-                       Language.Ammonite.Syntax.Printer
+                       Language.Ammonite.Syntax.Printer,
+                       System.File.Load
   other-modules:       Language.Ammonite.Gensym,
                        Language.Ammonite.Syntax.Sugar.AnonPoint
   -- other-extensions:    
