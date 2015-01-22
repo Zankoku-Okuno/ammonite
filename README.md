@@ -1,6 +1,8 @@
 Ammonite
 ========
 
+The language with more dynamism, more power, more simplicity.
+
 * A Lisp for people who like ML dialects,
 * An ML for people who like Lisp dialects,
 * and some extra stuff for good measure.
@@ -71,7 +73,7 @@ The first is dotted-expression syntax.
 When you find youself writing silly code like `equals? 1 2`, why not write `1 .equals? 2`?
 They are precicely equivalent.
 You can also chain dot-expressions: `1 .add 2 .add 3` is just like `(add (add 1 2) 3))`.
-You can even use the dot before a complex expression: `xs .(foldr max 0)` is the same as `foldr max 0 xs`.
+You can even use the dot before a compound expression: `xs .(foldr max 0)` is the same as `foldr max 0 xs`.
 
 And then infixing sometimes isn't enough, so Ammonite allows user-defined distfixes.
 The best example is if-then-else.

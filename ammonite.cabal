@@ -3,8 +3,21 @@
 
 name:                ammonite
 version:             0.0.0
--- synopsis:            
--- description:         
+synopsis:            The language with more dynamism, more power, more simplicity.
+description:         When I was 10 years old, my father taught me Scheme.
+                     Today however, I find myself mostly using Haskell, which is sad: where did the magic of Lisp go?
+                     Haskell surpasses existing Lisps in many areas, but it there's some core Lisp ideas it just doesn't deliver.
+                     That is why I created Ammonite: to rival today's functional programming with magic.
+                     .
+                     Ammonite makes persistant data the default to eliminate data corruption issues.
+                     The built-in data structures take advantage of fast implementations: the basic operations run in log-time at the most.
+                     Modules not only provide namespace management, but they can be manipulated at runtime, extendign the expressive power of parametric modules.
+                     The user can finally enforce their data abstraction barriers with by introducing abstract types as needed.
+                     A general and extensible pattern-matching algorithm is provided so that data, even abstract data, can be operated on without massive conditional expressions.
+                     We use the newest advances in vau calculus to provide the smoothest and most powerful syntactic abstraction capabilities possible.
+                     With the latest ideas in first-class control, we provide simple control flow abstraction, eliminating the last bastion of the evil techniques of pattern-based programming.
+                     We have great syntax (indented blocks, anonymous points, distfixes, dotted expressions, clear syntax for compound data) that makes it easier to write functional programs.
+                     Stay tuned for developments in ad-hoc overloading!
 homepage:            https://github.com/Zankoku-Okuno/ammonite
 license:             GPL-3
 license-file:        LICENSE
