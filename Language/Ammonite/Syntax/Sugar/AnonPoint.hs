@@ -16,6 +16,7 @@ deAnonPoint x =
         else Left $ "unbound anonymous points:" ++ concatMap (("\n  "++) . show . snd) gather
 
 
+-- | This does the interesting work: detecting and re-writing anonymous points
 go :: Syntax -> M Syntax
 go (AnonPoint, pos) = gensym pos
 go (Parens x, pos) = do
@@ -26,6 +27,24 @@ go (x, pos) = do
     x' <- _go x
     pure (x', pos)
 
+
+type M a = State (Int, [Syntax]) a
+
+gensym :: SourcePos -> M Syntax
+gensym pos = do
+    (n, gather) <- get
+    let name = (Name $ "**gensym_" ++ show n, pos)
+    put (n+1, gather++[name])
+    pure name
+
+points :: M [Syntax]
+points = do
+    (n, gather) <- get
+    put (n, [])
+    pure gather
+
+
+-- | This is just for the boring structural recursion
 _go :: SyntaxCore -> M SyntaxCore
 _go (Parens x) = error "internal error: Syntax.Sugar.AnonPoint._go called on Syntax.Concrete.Parens"
 _go (AnonLambda _ _) = error "precondition violated: syntax should not be run through deAnonPoint twice."
@@ -61,7 +80,7 @@ _go (Record xs varpos kvs varkw) = do
         pure (name, x')
 _go (Block stmts) = Block <$> go `mapM` stmts
 _go (Combine xs) | length xs < 2 = error "precondition violation: combine must have at least two subexpressions"
-_go (Combine xs) = Combine <$> go `mapM` xs
+                 | otherwise = Combine <$> go `mapM` xs
 _go (DotExpr x) = DotExpr <$> go x
 _go (Subvalue x route act) = do
     x' <- go x
@@ -79,20 +98,6 @@ _go (Subvalue x route act) = do
     doAct x = pure x
 
 
-type M a = State (Int, [Syntax]) a
-
-gensym :: SourcePos -> M Syntax
-gensym pos = do
-    (n, gather) <- get
-    let name = (Name $ "**gensym_" ++ show n, pos)
-    put (n+1, gather++[name])
-    pure name
-
-points :: M [Syntax]
-points = do
-    (n, gather) <- get
-    put (n, [])
-    pure gather
 
 
 

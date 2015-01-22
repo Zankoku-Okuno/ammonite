@@ -24,7 +24,9 @@ library
                        Language.Ammonite.Syntax.Printer,
                        System.File.Load
   other-modules:       Language.Ammonite.Gensym,
-                       Language.Ammonite.Syntax.Sugar.AnonPoint
+                       Language.Ammonite.Syntax.Sugar.DotExpr,
+                       Language.Ammonite.Syntax.Sugar.AnonPoint,
+                       Language.Ammonite.Syntax.Sugar.ToAbstract
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        containers ==0.5.*,
