@@ -67,12 +67,13 @@ data Value sysval =
     | SysOp 
         { sysopArity :: Int
         , sysopArguments :: [Value sysval]
-        , sysopExecute :: Value sysval -> IO (Either Text (Value sysval))
+        , sysopExecute :: [Value sysval] -> IO (Either Text (Value sysval))
         }
     --TODO as the language matures, I expect some extensions to become built-in
         -- float vals, big decimal
         -- HandleVal (file handles)
         -- dynamic C library, Ctypes (incl. fixed-width ints and words)
+        -- JStypes, call JS functions
 data ModuleItem sysval = Data Name (Value sysval)
                        | Docstr Text
 
