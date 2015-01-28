@@ -32,6 +32,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Language.Ammonite.Syntax.Abstract,
                        Language.Ammonite.Syntax.Concrete,
+                       Language.Ammonite.Syntax.Distfix,
                        Language.Ammonite.Syntax.Parser,
                        Language.Ammonite.Syntax.Sugar,
                        Language.Ammonite.Syntax.Printer,

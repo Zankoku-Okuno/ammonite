@@ -11,7 +11,7 @@ import Language.Ammonite.Syntax.Concrete
 
 deDistfix :: [[Distfix Syntax]] -> Syntax -> Either String Syntax
 deDistfix dft x =
-    let (x', errors) = runWriter (go dft x)
+    let (x', errors) = runWriter (go (reverse dft) x)
     in if null errors
         then Right x' --FIXME check that no parts are left over
         else Left $ intercalate "\n" $ showError <$> errors
@@ -24,36 +24,35 @@ deDistfix dft x =
 
 
 go :: [[Distfix Syntax]] -> Syntax -> Writer [[Syntax]] Syntax
-go dft (Combine es, pos) = go1 pos dft es
+go dft (Combine es, pos) = combine <$> (mapM (go dft) es >>= go1 dft)
 go dft (e, pos) = do
     e' <- _go dft e
     pure (e', pos)
 
-go1 :: SourcePos -> [[Distfix Syntax]] -> [Syntax] -> Writer [[Syntax]] Syntax
-go1 pos _ es | length es < 2 = error "precondition violation: combine must have at least two subexpressions"
-go1 pos [] es = pure (Combine es, pos)
-go1 pos dft@(dfs:rest) es = case findDistfixes dfs es of
-    NoMatch -> go1 pos rest es
-    OneMatch m -> rewrite (go1 pos dft) m
+go1 :: [[Distfix Syntax]] -> [Syntax] -> Writer [[Syntax]] [Syntax]
+go1 _ [] = error "internal error: go1 got empty expression list"
+go1 _ [e] = pure [e]
+go1 [] es = pure es
+go1 dft@(dfs:rest) es = case findDistfixes dfs es of
+    NoMatch -> go1 rest es
+    OneMatch m -> rewrite (go1 dft) m
     Ambiguous ms -> do
-        options <- mapM (rewrite wrap) ms
+        options <- map combine <$> mapM (rewrite pure) ms
         tell [options]
-        pure (Combine es, pos)
-        where
-        wrap [] = error "precondition violation: combine must have at least two subexpressions"
-        wrap (e@(_, pos) : es) = pure (Combine $ e:es, pos)
+        pure es
 
-rewrite :: ([Syntax] -> Writer [[Syntax]] Syntax) -> Detection Syntax -> Writer [[Syntax]] Syntax
-rewrite recurse m =
+rewrite :: ([Syntax] -> Writer [[Syntax]] [Syntax]) -> Detection Syntax -> Writer [[Syntax]] [Syntax]
+rewrite recurse m = do
     let before = detectionBefore m
         after = detectionAfter m
-        call = mkCall m
-    in if null before && null after
-        then pure $ call
-        else recurse $ before++[call]++after
+    slots' <- recurse `mapM` detectionSlots m
+    let m' = m { detectionSlots = slots' }
+    if null before && null after
+        then pure $ mkCall m'
+        else recurse $ before++[combine $ mkCall m']++after
 
-mkCall :: Detection Syntax -> Syntax
-mkCall detect = (Combine $ (f, pos):args, pos)
+mkCall :: Detection Syntax -> [Syntax]
+mkCall detect = (f, pos):args
     where
     f = mkName $ fromName <$> detectionParts detect
     args = case detectionSlots detect of
@@ -64,10 +63,18 @@ mkCall detect = (Combine $ (f, pos):args, pos)
     fromName _ = error "precondition violation: distfix part was not a Name"
     mkName parts = Name $ case detectionShape detect of
         Closed -> intercalate "_" parts
+        HalfOpenLeft -> concat $ ('_':) <$> parts 
+        HalfOpenRight -> concat $ (++"_") <$> parts
+        _ -> concat $ (('_':) <$> parts) ++ ["_"]
     mkArg [] = error "precondition violation: empty slot in distfix detection"
     mkArg [e] = e
     mkArg es = (Combine es, snd $ head es)
 
+
+combine :: [Syntax] -> Syntax
+combine [] = error "precondition violation: combine must have at least two subexpressions"
+combine [e] = e
+combine (e@(_, pos):es) = (Combine (e:es), pos)
 
 _go :: [[Distfix Syntax]] -> SyntaxCore -> Writer [[Syntax]] SyntaxCore
 _go dft (Parens e) = Parens <$> go dft e

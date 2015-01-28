@@ -5,6 +5,7 @@ module Language.Ammonite.Syntax.Parser
     , file
     , expr
     , strip
+    , name
     ) where
 
 import Data.Maybe
@@ -116,7 +117,7 @@ strLit = between2 dq $ do
         [ Nothing <$ string "\\&"
         , Nothing <$ bsnlwsbs
         , Just <$> char '$' `notFollowedBy` char '('
-        , Just <$> letterEsc (('$', '$') : cEscapes)
+        , Just <$> letterEsc (('$', '$') : ('s', ' ') : cEscapes)
         , Just <$> decimalEsc
         , Just <$> asciiEsc
         , Just <$> uniEsc
