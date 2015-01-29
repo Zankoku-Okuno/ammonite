@@ -32,7 +32,6 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Language.Ammonite.Syntax.Abstract,
                        Language.Ammonite.Syntax.Concrete,
-                       Language.Ammonite.Syntax.Distfix,
                        Language.Ammonite.Syntax.Parser,
                        Language.Ammonite.Syntax.Sugar,
                        Language.Ammonite.Syntax.Printer,
@@ -40,9 +39,9 @@ library
                        Language.Distfix,
                        System.File.Load
   other-modules:       Language.Ammonite.Gensym,
-                       Language.Ammonite.Syntax.Distfix.Parser,
-                       Language.Ammonite.Syntax.Distfix.Defaults,
                        Language.Ammonite.Syntax.Sugar.Distfix,
+                       Language.Ammonite.Syntax.Sugar.Distfix.Parser,
+                       Language.Ammonite.Syntax.Sugar.Distfix.Defaults,
                        Language.Ammonite.Syntax.Sugar.DotExpr,
                        Language.Ammonite.Syntax.Sugar.AnonPoint,
                        Language.Ammonite.Syntax.Sugar.ToAbstract

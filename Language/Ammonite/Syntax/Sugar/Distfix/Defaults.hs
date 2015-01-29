@@ -1,4 +1,4 @@
-module Language.Ammonite.Syntax.Distfix.Defaults
+module Language.Ammonite.Syntax.Sugar.Distfix.Defaults
     ( defaultDistfixes
     ) where
 

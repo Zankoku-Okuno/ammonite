@@ -1,4 +1,7 @@
-module Language.Ammonite.Syntax.Sugar.Distfix (deDistfix) where
+module Language.Ammonite.Syntax.Sugar.Distfix
+    ( deDistfix
+    , defaultDistfixes
+    ) where
 
 import Data.List
 import Control.Applicative
@@ -7,6 +10,7 @@ import Control.Monad.Writer
 import Language.Distfix
 
 import Language.Ammonite.Syntax.Concrete
+import Language.Ammonite.Syntax.Sugar.Distfix.Defaults
 
 
 deDistfix :: [[Distfix Syntax]] -> Syntax -> Either String Syntax

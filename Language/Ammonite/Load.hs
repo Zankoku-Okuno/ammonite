@@ -21,8 +21,9 @@ import Language.Ammonite.Syntax.Concrete
 import Language.Ammonite.Syntax.Sugar
 import Language.Ammonite.Syntax.Abstract
 import Language.Ammonite.Syntax.Parser
-import Language.Ammonite.Syntax.Distfix.Parser
-import Language.Ammonite.Syntax.Distfix.Defaults
+
+import Language.Ammonite.Syntax.Sugar.Distfix.Parser
+import Language.Ammonite.Syntax.Sugar.Distfix.Defaults
 
 
 type Loader sysval = L.Loader (AmmoniteFile sysval)

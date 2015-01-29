@@ -1,4 +1,4 @@
-module Language.Ammonite.Syntax.Distfix.Parser
+module Language.Ammonite.Syntax.Sugar.Distfix.Parser
     ( Assoc(..)
     , DistfixDefs(..)
     , GroupName, GroupLine
