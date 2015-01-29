@@ -31,12 +31,16 @@ parse parser = runParserI (allInput parser) (DontMix " ") [ilws] ()
 
 file :: Parser TransUnit
 file = do
+    pos0 <- getPosition
     optional_ $ string "#!" *> anyChar `manyThru` lineBreak
     directives <- many $ do
-        string "#(**" *> ws0
-        anyChar `manyThru` (ws0 *> string "**)#" *> lineBreak)
+        string "#(!" *> ws0
+        anyChar `manyThru` (ws0 *> string ")#" *> lineBreak)
     syntax <- lineExpr `sepAroundBy` nextline
-    return (directives, syntax)
+    pure $ (,) directives $ case syntax of
+        [] -> (Unit, pos0)
+        [e] -> e
+        es -> (Block es, pos0)
 
 expr :: Parser Syntax
 expr = _expr False

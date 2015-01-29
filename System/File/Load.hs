@@ -61,6 +61,7 @@ newLoader = C <$> newMVar Map.empty
 -}
 load :: Loader a -> Load a -> FilePath -> IO a
 load index proc path = do
+    --FIXME normalize the path to an abspath
     line <- fromIndex index path
     fromLine line proc path
 

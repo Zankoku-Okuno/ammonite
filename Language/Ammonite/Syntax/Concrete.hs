@@ -14,7 +14,7 @@ import Data.ByteString (ByteString)
 import Text.Luthor (SourcePos)
 
 
-type TransUnit = ([Directive], [Syntax])
+type TransUnit = ([Directive], Syntax)
 type Directive = String
 
 type Syntax = (SyntaxCore, SourcePos)

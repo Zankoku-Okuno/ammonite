@@ -5,9 +5,10 @@ module Language.Ammonite.Syntax.Sugar
 import Control.Applicative
 import Control.Monad
 
+import Language.Distfix
 import Language.Ammonite.Syntax.Concrete (Syntax)
+import Language.Ammonite.Syntax.Concrete (SyntaxCore(..))
 import Language.Ammonite.Syntax.Abstract (Expr)
-import Language.Ammonite.Syntax.Distfix
 
 import Language.Ammonite.Syntax.Sugar.Distfix
 import Language.Ammonite.Syntax.Sugar.DotExpr
@@ -18,96 +19,95 @@ import Language.Ammonite.Syntax.Sugar.ToAbstract
 desugar :: Syntax -> Either String (Expr sysval)
 desugar = (toAST <$>) . (deDistfix defaultDistfixes >=> deDot >=> deAnonPoint)
 
+
+--FIXME move into Syntax.Distfix.Default
+parts :: [String] -> [Syntax -> Bool]
+parts = map part
+    where
+    part x (Name y, _) = x == y
+    part _ _ = False
+
 defaultDistfixes :: [[Distfix Syntax]]
 defaultDistfixes =
-    [   [ forceDistfix "|_|" NonAssoc
-        , forceDistfix "⌊_⌋" NonAssoc
-        , forceDistfix "⌈_⌉" NonAssoc
+    [   map (distfix Closed . parts) [
+          ["|", "|"]
+        , ["⌊", "⌋"]
+        , ["⌈", "⌉"]
         ]
-    ,   [ forceDistfix "_↑_" RightAssoc
-        , forceDistfix "_^_" RightAssoc
-        ]
-    ,   [ forceDistfix "_*_" LeftAssoc
-        , forceDistfix "_/_" LeftAssoc
-        , forceDistfix "_%_" LeftAssoc
-        ]
-    ,   [ forceDistfix "_+_" LeftAssoc
-        , forceDistfix "_-_" LeftAssoc
-        ]
-    ,   [ forceDistfix "_<|_" LeftAssoc
-        , forceDistfix "_|>_" RightAssoc
-        ]
-    ,   [ forceDistfix "_++_" RightAssoc
-        , forceDistfix "_--_" RightAssoc
-        , forceDistfix "_∪_" LeftAssoc
-        , forceDistfix "_∩_" LeftAssoc
-        ]
-    ,   [ forceDistfix "_∧_" LeftAssoc
-        , forceDistfix "_⊼_" LeftAssoc
+    ,   map (distfix OpenRight . parts) [
+          ["↑"]
         
-        , forceDistfix "_&&_" LeftAssoc
-        , forceDistfix "_!&_" LeftAssoc
+        , ["^"]
         ]
-    ,   [ forceDistfix "_∨_" LeftAssoc
-        , forceDistfix "_⊽_" LeftAssoc
+    ,   map (distfix OpenLeft . parts) [
+          ["*"], ["/"], ["%"]
+        ]
+    ,   map (distfix OpenLeft . parts) [
+          ["+"], ["-"]
+        ]
+    ,   [ distfix OpenLeft $ parts ["<|"]
+        , distfix OpenRight $ parts ["|>"]
+        ]
+    ,   [ distfix OpenRight $ parts ["++"]
+        , distfix OpenRight $ parts ["--"]
+        , distfix OpenLeft $ parts ["∪"]
+        , distfix OpenLeft $ parts ["∩"]
+        ]
+    ,   map (distfix OpenLeft . parts) [ 
+          ["∧"], ["⊼"]
         
-        , forceDistfix "_||_" LeftAssoc
-        , forceDistfix "_!|_" LeftAssoc
+        , ["&&"], ["!&"]
+        ]
+    ,   map (distfix OpenLeft . parts) [
+          ["∨"], ["⊽"]
+
+        , ["||"], ["!|"]
         ]
     --TODO other logical operators? (implies)
-    ,   [ forceDistfix "_=_" NonAssoc
-        , forceDistfix "_<_" NonAssoc
-        , forceDistfix "_>_" NonAssoc
-        , forceDistfix "_≠_" NonAssoc
-        , forceDistfix "_≤_" NonAssoc
-        , forceDistfix "_≥_" NonAssoc
-        , forceDistfix "_≈_" NonAssoc
-        , forceDistfix "_!=_" NonAssoc
-        , forceDistfix "_<=_" NonAssoc
-        , forceDistfix "_>=_" NonAssoc
+    ,   map (distfix OpenNon . parts) [
+          ["="], ["≠"], ["≈"]
+        , ["<"], [">"]
+        , ["≤"], ["≥"]
 
-        , forceDistfix "_∈_" NonAssoc
-        , forceDistfix "_∉_" NonAssoc
-        , forceDistfix "_∋_" NonAssoc
-        , forceDistfix "_∌_" NonAssoc
-        , forceDistfix "_⊆_" NonAssoc
-        , forceDistfix "_⊇_" NonAssoc
-        , forceDistfix "_⊂_" NonAssoc
-        , forceDistfix "_⊃_" NonAssoc
+        , ["∈"], ["∉"]
+        , ["∋"], ["∌"]
+        , ["⊆"], ["⊇"], ["⊂"], ["⊃"]
 
-        , forceDistfix "_<_<_" NonAssoc
-        , forceDistfix "_<_≤_" NonAssoc
-        , forceDistfix "_≤_<_" NonAssoc
-        , forceDistfix "_≤_≤_" NonAssoc
+        , ["<", "<"]
+        , ["<", "≤"]
+        , ["≤", "<"]
+        , ["≤", "≤"]
         --TODO other trinary relational operators?
+
+        , ["!="], ["~="]
+        , ["<="], [">="]
         ]
-    ,   [ forceDistfix "_<$>_" LeftAssoc
-        , forceDistfix "_<$$>_" LeftAssoc
-        , forceDistfix "_<*>_" LeftAssoc
-        , forceDistfix "_<**>_" LeftAssoc
-        , forceDistfix "_<$_" LeftAssoc
-        , forceDistfix "_$>_" LeftAssoc
+    ,   map (distfix OpenLeft . parts) [
+          ["<$>"], ["<$$>"]
+        , ["<*>"], ["<**>"]
+        , ["<$"], ["$>"]
         ]
     --TODO arrow operators
-    ,   [ forceDistfix "_>=>_" LeftAssoc
-        , forceDistfix "_>>=_" LeftAssoc
-        , forceDistfix "_=<<_" LeftAssoc
-        , forceDistfix "_>>_" LeftAssoc
-        , forceDistfix "_<<_" LeftAssoc
+    ,   map (distfix OpenLeft . parts) [
+          [">=>"]
+        , [">>="], ["=<<"]
+        , [">>"], ["<<"]
         ]
-    ,   [ forceDistfix "_$_" RightAssoc
-        , forceDistfix "_$$_" RightAssoc
-        , forceDistfix "_∘_" RightAssoc
+    ,   map (distfix OpenRight . parts) [
+          ["$"], ["$$"]
+        , ["∘"]
 
-        , forceDistfix "_of_" RightAssoc
+        , ["of"]
         ]
-    ,   [ forceDistfix "if_then_else_" RightAssoc
-        , forceDistfix "case_of_" RightAssoc
-        , forceDistfix "case_of_else_" RightAssoc
+    ,   map (distfix HalfOpenRight . parts) [
+          ["if", "then", "else"]
+        , ["case", "of"]
+        , ["case", "of", "else"]
         ]
-    ,   [ forceDistfix "_→_" RightAssoc
-        , forceDistfix "_->_" RightAssoc
+    ,   map (distfix OpenRight . parts) [
+          ["→"]
+        
+        , ["->"]
         ]
-    ,   [ forceDistfix "_is_" NonAssoc
-        ]
+    ,   [ distfix OpenNon $ parts ["is"] ]
     ]

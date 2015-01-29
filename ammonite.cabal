@@ -36,9 +36,11 @@ library
                        Language.Ammonite.Syntax.Parser,
                        Language.Ammonite.Syntax.Sugar,
                        Language.Ammonite.Syntax.Printer,
+                       Language.Ammonite.Load,
                        Language.Distfix,
                        System.File.Load
   other-modules:       Language.Ammonite.Gensym,
+                       Language.Ammonite.Syntax.Distfix.Parser,
                        Language.Ammonite.Syntax.Sugar.Distfix,
                        Language.Ammonite.Syntax.Sugar.DotExpr,
                        Language.Ammonite.Syntax.Sugar.AnonPoint,
