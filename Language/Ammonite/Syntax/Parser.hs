@@ -230,8 +230,8 @@ subValue e0 = withPosition $ do
             _ -> string "?"
         access = pure Access
         update = Update <$> case last route of
-            (Field _) -> string ":=" *> expr
-            _ -> string "=" *> expr
+            (Field _) -> string ":=" *> anExpr coreExpr
+            _ -> string "=" *> anExpr coreExpr
         delete = Delete <$ case last route of
             (Field _) ->  string ":="
             _ -> string "="
