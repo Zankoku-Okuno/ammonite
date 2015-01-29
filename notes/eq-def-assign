@@ -1,0 +1,26 @@
+Concerning Equality, Definition, and Assignment
+-----------------------------------------------
+
+In math, the equals sign means "equivalence", which could be taken to be a definition or a statement about simplification or a test for equality.
+In programming, the situation is a bit stranger.
+
+Definition is done with `var _` or the like, and assignment is usually `_ = _`.
+We even have some vaugely math-looking definitions by the `var _ = _` syntactic sugar which defines a reference cell and assigns to it all together.
+(Frankly, this sugar is probably at the root of some serious data corruption bugs, thanks to the syntax looking much like math but acting very differently.)
+The equality test is then relegated to `_ == _`.
+
+Now, perhaps a more math-like syntax is:
+	* Define with `_ = _`
+	* Assign with `_ := _`
+	* Test equality with `_ =? _`
+but that `=?` just looks weird.
+Especially when we have to make equality tests along with ordering tests.
+
+So, I have chosen something a little different:
+	* Define with `_ is _`
+	* Assign with `set! _ _`
+	* Test equality with `_ = _`
+
+Equality test is `=` now so that it fits with `\/= < > \<= \>=`.
+Assignment is as in Scheme: both familiar and distinct from any mathematical notation.
+Definition is the only new one, but it's short, sweet, and to-the-point.
