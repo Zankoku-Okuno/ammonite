@@ -41,6 +41,7 @@ library
                        System.File.Load
   other-modules:       Language.Ammonite.Gensym,
                        Language.Ammonite.Syntax.Distfix.Parser,
+                       Language.Ammonite.Syntax.Distfix.Defaults,
                        Language.Ammonite.Syntax.Sugar.Distfix,
                        Language.Ammonite.Syntax.Sugar.DotExpr,
                        Language.Ammonite.Syntax.Sugar.AnonPoint,
@@ -49,6 +50,7 @@ library
   build-depends:       base >=4.6 && <4.7,
                        containers ==0.5.*,
                        mtl ==2.*,
+                       either ==4.*,
                        bytestring ==0.10.*,
                        text ==0.11.*,
                        symbol ==0.2.*,

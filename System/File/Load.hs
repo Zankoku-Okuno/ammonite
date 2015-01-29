@@ -29,8 +29,11 @@ module System.File.Load (
     , newLoader
     , Load
     , load
+    , loadOr
     ) where
 
+import Control.Exception (Exception, handleJust)
+import System.IO.Error (IOError, isAlreadyInUseError, isDoesNotExistError, isPermissionError)
 import Control.Applicative
 import System.IO (FilePath, withFile, Handle, IOMode(ReadMode))
 import Control.Concurrent.MVar
@@ -58,13 +61,20 @@ newLoader = C <$> newMVar Map.empty
 
 {-| Within a 'Loader', either immediately obtain the result of a processed file,
     or else open, process and index the file obtaining the result of processing.
+
+    FIXME offer a way to handle an error (like the file does not exist or lack of permissions)
 -}
 load :: Loader a -> Load a -> FilePath -> IO a
-load index proc path = do
+load index = _load index Nothing
+
+loadOr :: a -> Loader a -> Load a -> FilePath -> IO a
+loadOr errval index = _load index (Just errval)
+
+_load :: Loader a -> Maybe a -> Load a -> FilePath -> IO a
+_load index m_errval proc path = do
     --FIXME normalize the path to an abspath
     line <- fromIndex index path
-    fromLine line proc path
-
+    fromLine m_errval line proc path
 
 fromIndex :: Loader a -> FilePath -> IO (CacheLine a)
 fromIndex (C cell) path = modifyMVar cell $ \index ->
@@ -75,12 +85,19 @@ fromIndex (C cell) path = modifyMVar cell $ \index ->
             let index' = Map.insert path newLine index
             pure (index', newLine)
 
-fromLine :: CacheLine a -> Load a -> FilePath -> IO a
-fromLine cell proc path =
+fromLine :: Maybe a -> CacheLine a -> Load a -> FilePath -> IO a
+fromLine m_errval cell proc path =
     modifyMVar cell $ \val -> case val of
         Just cached -> pure (val, cached)
         Nothing -> do
-            withFile path ReadMode $ \fp -> do
-                res <- proc fp
-                pure (Just res, res)
+            res <- case m_errval of
+                Nothing -> go
+                Just errval -> handleJust (handler errval) pure go
+            pure (Just res, res)
+    where
+    go = withFile path ReadMode proc
+    handler errval e | isAlreadyInUseError e = Just errval
+                     | isDoesNotExistError e = Just errval
+                     | isPermissionError e = Just errval
+                     | otherwise = Nothing
 
