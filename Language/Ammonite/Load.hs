@@ -1,19 +1,24 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Language.Ammonite.Load 
-    ( AmmoniteFile
+    ( AmmoniteFile(..)
+    , FileExpr
+    , FileVal
+    , LoadError(..)
     , Loader
     , newLoader
-    , load
-    , LoadUnit(..)
-    , LoadError(..)
+    , parseFile
+    , evalFile
     ) where
+
+import System.IO
+import Control.Exception (Exception, handleJust)
+import System.IO.Error (IOError, isAlreadyInUseError, isDoesNotExistError, isPermissionError)
+import qualified System.File.Load as L
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Either
 
-import System.IO
-import qualified System.File.Load as L
 import Language.Distfix
 import Text.Parsec (ParseError)
 
@@ -26,20 +31,16 @@ import Language.Ammonite.Syntax.Sugar.Distfix.Parser
 import Language.Ammonite.Syntax.Sugar.Distfix.Defaults
 
 
-type Loader sysval = L.Loader (AmmoniteFile sysval)
-type AmmoniteFile sysval = Either LoadError (LoadUnit sysval)
+type Loader sysval = (L.Loader (FileExpr sysval), L.Loader (FileVal sysval))
 
-newLoader :: IO (Loader a)
-newLoader = L.newLoader
-
-load :: Loader sysval -> FilePath -> IO (AmmoniteFile sysval)
-load loader path = L.loadOr (Left $ SystemError path) loader (loadAmmonite path) path
+type FileExpr sysval = Either LoadError (AmmoniteFile sysval)
+type FileVal sysval = Either LoadError (Value sysval)
 
 
-data LoadUnit sysval = LU {
-      luProgram :: Expr sysval --FIXME this should really just be a module value
-    , luDistfixGroups :: [(GroupName, [[Distfix Syntax]])]
-    , luDistfixUse :: [[Distfix Syntax]] -- use the default set if none specified
+data AmmoniteFile sysval = AF {
+      afProgram :: Expr sysval
+    , afDistfixGroups :: [(GroupName, [[Distfix Syntax]])]
+    , afDistfixUse :: [[Distfix Syntax]] -- use the default set if none specified
 }
 
 data LoadError =
@@ -49,22 +50,37 @@ data LoadError =
     | DesugarError FilePath String -- ^When there is an error desugaring the syntax.
     | ImportError String -- ^When there is an error evaluating the file body.
 
+newLoader :: IO (Loader sysval)
+newLoader = (,) <$> L.newLoader <*> L.newLoader
 
-loadAmmonite :: FilePath -> L.Load (Either LoadError (LoadUnit sysval))
-loadAmmonite path fp = do
-    input <- hGetContents fp
-    runEitherT $ do
-        (directives, concrete) <- lmapHoistEither SyntaxError $ parse file path input
-        --TODO get distfix directives, send to loadDistfixes
-        (groups, uses) <- loadDistfixes path []
-        --TODO if any directives left over, die
-        abstract <- lmapHoistEither (DesugarError path) $ desugar uses concrete
-        --TODO evaluate the file
-        pure $ LU {
-              luProgram = abstract
-            , luDistfixGroups = groups
-            , luDistfixUse = uses
-            }
+
+parseFile :: Loader sysval -> FilePath -> IO (FileExpr sysval)
+parseFile (syntax, _) = L.load syntax go
+    where
+    go path = handleJust handler pure $ withFile path ReadMode $ \fp -> do
+        input <- hGetContents fp
+        runEitherT $ do
+            (directives, concrete) <- lmapHoistEither SyntaxError $ parse file path input
+            --TODO get distfix directives, send to loadDistfixes
+            (groups, uses) <- loadDistfixes path []
+            --TODO if any directives left over, die
+            abstract <- lmapHoistEither (DesugarError path) $ desugar uses concrete
+            pure $ AF {
+                  afProgram = abstract
+                , afDistfixGroups = groups
+                , afDistfixUse = uses
+                }
+        where
+        handler e | isAlreadyInUseError e
+                  || isDoesNotExistError e
+                  || isPermissionError e = Just . Left $ SystemError path
+                  | otherwise = Nothing
+
+evalFile :: Loader sysval -> FilePath -> IO (FileVal sysval)
+evalFile loader@(syntax, val) path = do
+    program <- (afProgram <$>) <$> parseFile loader path
+    error "TODO Language.Ammonite.Load.evalFile"
+
 
 loadDistfixes :: FilePath -> [String] -> EitherT LoadError IO ([(GroupName, [[Distfix Syntax]])], [[Distfix Syntax]])
 loadDistfixes path [] = pure ([], defaultDistfixes)
