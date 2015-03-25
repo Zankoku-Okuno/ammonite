@@ -31,17 +31,17 @@ import Language.Ammonite.Syntax.Sugar.Distfix.Parser
 import Language.Ammonite.Syntax.Sugar.Distfix.Defaults
 
 
-type Loader sysval = (L.Loader (FileExpr sysval), L.Loader (FileVal sysval))
-
-type FileExpr sysval = Either LoadError (AmmoniteFile sysval)
-type FileVal sysval = Either LoadError (Value sysval)
-
-
 data AmmoniteFile sysval = AF {
       afProgram :: Expr sysval
     , afDistfixGroups :: [(GroupName, [[Distfix Syntax]])]
     , afDistfixUse :: [[Distfix Syntax]] -- use the default set if none specified
 }
+
+
+type Loader sysval = (L.Loader (FileExpr sysval), L.Loader (FileVal sysval))
+
+type FileExpr sysval = Either LoadError (AmmoniteFile sysval)
+type FileVal sysval = Either LoadError (Value sysval)
 
 data LoadError =
       SystemError FilePath -- ^When we can't even open the requested file.
@@ -71,10 +71,10 @@ parseFile (syntax, _) = L.load syntax go
                 , afDistfixUse = uses
                 }
         where
-        handler e | isAlreadyInUseError e
+        handler e |  isAlreadyInUseError e
                   || isDoesNotExistError e
                   || isPermissionError e = Just . Left $ SystemError path
-                  | otherwise = Nothing
+                  |  otherwise = Nothing
 
 evalFile :: Loader sysval -> FilePath -> IO (FileVal sysval)
 evalFile loader@(syntax, val) path = do

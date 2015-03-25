@@ -225,22 +225,17 @@ compound = withPosition $ choice [list, struct, record]
 subValue :: Syntax -> Parser Syntax
 subValue e0 = withPosition $ do
     route <- many1 $ attr <||> index <||> slice
-    let exists = Exists <$ case last route of
-            (Field _) ->  string ":?"
-            _ -> string "?"
+    let exists = Exists <$ string ":?"
         access = pure Access
-        update = Update <$> case last route of
-            (Field _) -> string ":=" *> anExpr coreExpr
-            _ -> string "=" *> anExpr coreExpr
-        delete = Delete <$ case last route of
-            (Field _) ->  string ":="
-            _ -> string "="
+        update = Update <$> (string ":=" *> anExpr coreExpr)
+        delete = Delete <$ string ":="
     Subvalue e0 route <$> choice [exists, update, delete, access]
     where
     attr = Field <$ dot <*> name
     index = Index <$> brackets expr
     slice = brackets $ Slice <$>
         optional (expr <* ws) <* (ellipsis3 <* sep) <*> optional expr
+        --FIXME have all of `[e ... e]`, `[e ...]` and `[... e]`, even `[...]` though it's useless
     
 indentExpr :: Parser Syntax
 indentExpr = withPosition $ do

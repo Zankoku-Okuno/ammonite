@@ -67,10 +67,10 @@ showAST (RecordExpr pos varpos kw (Just varkw), _) =
         showKw = ((++", ") . kv showAST) `concatMap` Map.toList kw
         showVarkw = showAST varkw ++ ":..."
     in parens $ concat [showPos, showVarpos, showKw, showVarkw]
-showAST (Exists e route, _) = showAST e ++ concatMap showRoute route ++ showRouteColon route ++ "?"
+showAST (Exists e route, _) = showAST e ++ concatMap showRoute route ++ ":?"
 showAST (Access e route, _) = showAST e ++ concatMap showRoute route
-showAST (Update e route e', _) = showAST e ++ concatMap showRoute route ++ showRouteColon route ++ "=" ++ showAST e'
-showAST (Delete e route, _) = showAST e ++ concatMap showRoute route ++ showRouteColon route ++ "="
+showAST (Update e route e', _) = showAST e ++ concatMap showRoute route ++ ":=" ++ showAST e'
+showAST (Delete e route, _) = showAST e ++ concatMap showRoute route ++ ":="
 showAST (QuotedExpr e, _) = ('`':) $ showAST e
 showAST (UnquotedExpr e, _) = (',':) $ showAST e
 showAST (Ap xs, _) = parens . spaces $ showAST <$> xs
@@ -83,10 +83,6 @@ showRoute (Slice start stop) =
     let showStart = maybe "" ((++" ") . showAST) start
         showStop = maybe "" ((" "++) . showAST) stop
     in bracks $ concat [showStart, "...", showStop]
-
-showRouteColon r = case last r of
-    (Field _) -> ":"
-    _ -> ""
 
 --FIXME do proper indentation
 --FIXME elimiate redundant parens: Ap as element of ListExpr, StructExpr, RecordExpr, Block, interpoaltion into a string
