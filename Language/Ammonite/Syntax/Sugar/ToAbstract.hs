@@ -20,14 +20,14 @@ toAST :: Syntax -> Expr sysval
 toAST (Parens x, _) = toAST x
 toAST (AnonLambda [] body, _) = toAST body
 toAST (AnonLambda [arg] body, pos) =
-    let lambda = (Lit $ Prim Lambda, pos')
+    let lambda = (Lit $ Prim Lambda 2 [], pos')
         pos' = goPos pos
-    in (Ap [lambda, toAST arg, toAST body], pos')
+    in (Ap $ Seq.fromList [lambda, toAST arg, toAST body], pos')
 toAST (AnonLambda args body, pos) =
-    let lambda = (Lit $ Prim Lambda, pos')
-        args' = (Ap $ toAST <$> args, pos')
+    let lambda = (Lit $ Prim Lambda 2 [], pos')
+        args' = (Ap $ Seq.fromList (toAST <$> args), pos')
         pos' = goPos pos
-    in (Ap [lambda, args', toAST body], pos')
+    in (Ap $ Seq.fromList [lambda, args', toAST body], pos')
 toAST (x, pos) = (_go x, goPos pos)
 
 
@@ -70,7 +70,7 @@ _go (Record pos varpos kvs varkw) =
 _go (Quote x) = QuotedExpr (toAST x)
 _go (Unquote x) = UnquotedExpr (toAST x)
 _go (Combine args) | length args < 2 = error "precondition violation: combine must have at least two subexpressions"
-_go (Combine args) = Ap (toAST <$> args)
+_go (Combine args) = Ap $ Seq.fromList (toAST <$> args)
 _go (CST.Block stmts) = AST.Block (toAST <$> stmts)
 _go (DotExpr _) = error "precondition violation: cannot create AST with dotted expressions"
 _go (Subvalue x r CST.Exists) = AST.Exists (toAST x) (goRoute <$> r)

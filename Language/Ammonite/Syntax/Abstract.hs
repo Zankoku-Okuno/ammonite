@@ -76,7 +76,11 @@ data Value sysval =
                 -- I have the idea to force all thunks before primitives, so if passing through a channel is prim, then thunks will never be forced except in the thread in which they were created
     
     -- System Types
-    | Prim Prim
+    | Prim
+        { primOp :: Prim
+        , primArity :: Int
+        , primArgs :: [Value sysval]
+        }
     | SysVal sysval
     | SysOp 
         { sysopArity :: Int
@@ -118,7 +122,7 @@ data ExprCore sysval =
     | Access (Expr sysval) [Route sysval]
     | Update (Expr sysval) [Route sysval] (Expr sysval)
     | Delete (Expr sysval) [Route sysval]
-    | Ap [Expr sysval]
+    | Ap (Seq (Expr sysval))
     | Block [Expr sysval]
 data Route sysval =
       Field Name

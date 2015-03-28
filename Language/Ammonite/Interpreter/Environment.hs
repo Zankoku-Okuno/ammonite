@@ -19,5 +19,5 @@ startEnv = do
 
 startBindings :: [(Name, Value sysval)]
 startBindings = map (\(x, v) -> (intern x, v))
-    [ ("x", NumVal 3)
+    [ ("_+_", Prim Add 2 [])
     ]

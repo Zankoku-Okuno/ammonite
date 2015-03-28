@@ -36,7 +36,7 @@ showVal (ClosureVal {}) = angles $ "closure" --FIXME show metadata
 --showVal (EnvVal _) = undefined -- TODO
 --showVal (ExprVal _) = undefined -- TODO
 --showVal (ThunkVal) = undefined -- TODO
-showVal (Prim x) = ("**"++) $ show x
+showVal (Prim op arity args) = "<Prim: " ++ show op ++ intercalate "," (map ((" "++) . showVal) args) ++ ">"
 --showVal (SysVal _) = undefined -- TODO
 --showVal (SysOp {}) = undefined -- TODO
 
@@ -74,7 +74,7 @@ showAST (Update e route e', _) = showAST e ++ concatMap showRoute route ++ ":=" 
 showAST (Delete e route, _) = showAST e ++ concatMap showRoute route ++ ":="
 showAST (QuotedExpr e, _) = ('`':) $ showAST e
 showAST (UnquotedExpr e, _) = (',':) $ showAST e
-showAST (Ap xs, _) = parens . spaces $ showAST <$> xs
+showAST (Ap xs, _) = parens . spaces $ showAST <$> toList xs
 showAST (Block stmts, _) = parens . semicolons $ showAST <$> stmts
 
 showRoute :: Show sysval => Route sysval -> String
