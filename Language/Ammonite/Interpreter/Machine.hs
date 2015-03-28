@@ -17,6 +17,7 @@ import Control.Monad.State.Strict
 import Control.Monad.IO.Class
 
 
+--FIXME I need an EitherT ErrorReport
 newtype Machine sysval a = Machine { unMachine :: StateT (MachineState sysval) IO a }
     deriving (Functor, Applicative, Monad, MonadIO)
 

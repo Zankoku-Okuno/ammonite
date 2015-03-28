@@ -72,8 +72,7 @@ data Value sysval =
     -- First-class Environments
     | EnvVal (Env sysval)
     | ExprVal (Expr sysval)
-    | ThunkVal --TODO (memoize result: decide on a thread-safe storage mechanism)
-                -- I have the idea to force all thunks before primitives, so if passing through a channel is prim, then thunks will never be forced except in the thread in which they were created
+    | ThunkVal (ThunkCell sysval)
     
     -- System Types
     | Prim
@@ -95,6 +94,8 @@ data Value sysval =
         -- JITed functions
 data ModuleItem sysval = Data Name (Value sysval)
                        | Docstr Text
+
+type ThunkCell sysval = IORef (Either (Value sysval) (Expr sysval, Env sysval))
 
 data Prim =
       Lambda
@@ -140,6 +141,8 @@ data ContCore sysval =
     | StructCont --TODO
     | RecordCont --TODO
     | ExprCont --TODO
+    --
+    | ThunkCont (ThunkCell sysval)
     -- Application
     | OpCont {-hole-} (Expr sysval)
     | ApCont (Value sysval) {-hole-}
