@@ -35,5 +35,7 @@ startEnv = do
 
 stdBindings :: [(Name, Value sysval)]
 stdBindings = map (\(x, v) -> (intern x, v))
-    [ ("_+_", Prim Add 2 [])
+    [ ("_is_", PrimForm Define 2 [])
+    
+    , ("_+_", PrimAp Add 2 [])
     ]

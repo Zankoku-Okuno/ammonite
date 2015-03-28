@@ -36,7 +36,8 @@ showVal (ClosureVal {}) = angles $ "closure" --FIXME show metadata
 --showVal (EnvVal _) = undefined -- TODO
 --showVal (ExprVal _) = undefined -- TODO
 --showVal (ThunkVal) = undefined -- TODO
-showVal (Prim op arity args) = "<Prim: " ++ show op ++ intercalate "," (map ((" "++) . showVal) args) ++ ">"
+showVal (PrimForm op arity args) = "<PrimForm: " ++ show op ++ " " ++ show arity ++ ">"
+showVal (PrimAp op arity args) = "<PrimAp: " ++ show op ++ intercalate "," (map ((" "++) . showVal) args) ++ ">"
 --showVal (SysVal _) = undefined -- TODO
 --showVal (SysOp {}) = undefined -- TODO
 

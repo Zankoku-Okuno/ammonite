@@ -40,11 +40,12 @@ reduce :: Value sysval -> Machine sysval (Value sysval)
 reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     where
     reduce' :: Cont sysval -> Value sysval -> Machine sysval (Value sysval)
-    --FIXME if it's an operative, don't move to ApCont, go straight to apply
+    reduce' (OpCont arg, pos) f@(PrimForm _ _ _) = form f arg pos
+    --FIXME if it's an operative, don't move to ApCont, go straight to form
     reduce' (OpCont arg, pos) f = do
         pushCont (ApCont f, pos)
         eval arg
-    reduce' k@(ApCont f@(Prim _ _ _), pos) (ThunkVal thunk_cell) = do
+    reduce' k@(ApCont f@(PrimAp _ _ _), pos) (ThunkVal thunk_cell) = do
         thunk <- liftIO $ readIORef thunk_cell
         case thunk of
             Left v -> apply f v pos
@@ -58,12 +59,22 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (ThunkCont cell, _) v = do
         liftIO $ writeIORef cell $ Left v
         reduce v
+    reduce' (MatchCont p, pos) v = match p v
     reduce' k v = error "reduce unimplemented"
 
+form :: Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
+form (PrimForm op n args) next _ | n > 1 = do
+    env <- reifyEnv
+    reduce (PrimForm op (n-1) (args ++ [(next, env)]))
+form (PrimForm Define 1 [p]) e pos = do
+    pushCont (MatchCont p, pos)
+    eval e
+    --evaluate e, then pattern match it against p, the resulting environment is then used to extend the current
+    --if no match, that's an exception
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
-apply (Prim op n args) nextArg pos | n > 1 = reduce (Prim op (n-1) (args ++ [nextArg]))
-apply (Prim Add 1 [v1]) v2 pos = case (v1, v2) of
+apply (PrimAp op n args) next pos | n > 1 = reduce (PrimAp op (n-1) (args ++ [next]))
+apply (PrimAp Add 1 [v1]) v2 pos = case (v1, v2) of
     (NumVal a, NumVal b) -> reduce $ NumVal (a+b)
     _ -> error "type error in add unimplemented"
 
@@ -74,3 +85,9 @@ seqExprs [e] _ = eval e
 seqExprs (e:rest) pos = do
     pushCont (BlockCont rest, pos)
     eval e
+
+match :: (Expr sysval, Env sysval) -> Value sysval -> Machine sysval (Value sysval)
+match ((Name x, _), _) v = do
+    bindCurrentEnv x v
+    reduce v
+match (dector, env) v = error "unimplemented: match"

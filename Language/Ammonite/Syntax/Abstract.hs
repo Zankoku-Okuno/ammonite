@@ -75,7 +75,12 @@ data Value sysval =
     | ThunkVal (ThunkCell sysval)
     
     -- System Types
-    | Prim
+    | PrimForm
+        { primformOp :: Prim
+        , primformArity :: Int
+        , primformArgs :: [(Expr sysval, Env sysval)]
+        }
+    | PrimAp
         { primOp :: Prim
         , primArity :: Int
         , primArgs :: [Value sysval]
@@ -98,7 +103,7 @@ data ModuleItem sysval = Data Name (Value sysval)
 type ThunkCell sysval = IORef (Either (Value sysval) (Expr sysval, Env sysval))
 
 data Prim =
-      Lambda
+      Define | Vau | Lambda
     | Neg | Floor | Ceil
     | Add | Sub | Mul | Div | Exp | Log
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
@@ -141,10 +146,11 @@ data ContCore sysval =
     | StructCont --TODO
     | RecordCont --TODO
     | ExprCont --TODO
-    --
-    | ThunkCont (ThunkCell sysval)
     -- Application
     | OpCont {-hole-} (Expr sysval)
     | ApCont (Value sysval) {-hole-}
     -- Sequencing
     | BlockCont {-hole-} [Expr sysval]
+    -- other
+    | ThunkCont (ThunkCell sysval)
+    | MatchCont (Expr sysval, Env sysval)

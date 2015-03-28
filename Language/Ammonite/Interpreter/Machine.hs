@@ -3,6 +3,7 @@ module Language.Ammonite.Interpreter.Machine
     ( Machine
     , runMachine
     , lookupCurrentEnv
+    , bindCurrentEnv
     , swapEnv
     , reifyEnv
     , pushCont
@@ -10,6 +11,8 @@ module Language.Ammonite.Interpreter.Machine
     , Result(..)
     ) where
 
+import Data.IORef
+import qualified Data.Map as Map
 import Control.Applicative
 import Language.Ammonite.Syntax.Abstract
 import Text.Luthor (SourcePos)
@@ -55,6 +58,11 @@ lookupCurrentEnv :: Name -> Machine sysval (Maybe (Value sysval))
 lookupCurrentEnv x = Machine $ do
     env <- gets msEnv
     liftIO $ lookupEnv x env
+
+bindCurrentEnv :: Name -> Value sysval -> Machine sysval ()
+bindCurrentEnv x v = Machine $ do
+    env <- gets msEnv
+    liftIO $ modifyIORef (envBindings env) $ Map.insert x v
 
 swapEnv :: Env sysval -> Machine sysval ()
 swapEnv env' = do

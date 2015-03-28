@@ -20,11 +20,11 @@ toAST :: Syntax -> Expr sysval
 toAST (Parens x, _) = toAST x
 toAST (AnonLambda [] body, _) = toAST body
 toAST (AnonLambda [arg] body, pos) =
-    let lambda = (Lit $ Prim Lambda 2 [], pos')
+    let lambda = (Lit $ PrimForm Lambda 2 [], pos')
         pos' = goPos pos
     in (Ap $ Seq.fromList [lambda, toAST arg, toAST body], pos')
 toAST (AnonLambda args body, pos) =
-    let lambda = (Lit $ Prim Lambda 2 [], pos')
+    let lambda = (Lit $ PrimForm Lambda 2 [], pos')
         args' = (Ap $ Seq.fromList (toAST <$> args), pos')
         pos' = goPos pos
     in (Ap $ Seq.fromList [lambda, args', toAST body], pos')
