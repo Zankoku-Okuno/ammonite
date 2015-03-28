@@ -56,9 +56,10 @@ Interpretation
 	[ ] SECD monad
 		[ ] environments
 		[ ] metacontinuation stack
+			[*] user view of continuations
+			[ ] uniform API for manipulating metacont stack as a simple stack
 			[ ] metacont items
 			[ ] continuations per-expression
-			[ ] uniform API for manipulating metacont stack as a simple stack
 		[ ] thread-local data store
 	[ ] interpreter
 		[ ] pluggable builtins
@@ -77,5 +78,3 @@ For Future Reference
 
 We can stack loaders, so that one relies on the other.
 So, the loader for evaling files relies on the loader for parsing files relies on the filesystem.
-
-The let form should enthunk everything, then force them all in-order and rebind those names before entering the body

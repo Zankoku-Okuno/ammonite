@@ -35,6 +35,9 @@ library
                        Language.Ammonite.Syntax.Parser,
                        Language.Ammonite.Syntax.Sugar,
                        Language.Ammonite.Syntax.Printer,
+                       Language.Ammonite.Interpreter.Machine,
+                       Language.Ammonite.Interpreter.Evaluator,
+                       Language.Ammonite.Interpreter.Environment,
                        Language.Ammonite.Load,
                        Language.Distfix,
                        System.File.Load
@@ -49,6 +52,7 @@ library
   build-depends:       base >=4.6 && <4.7,
                        containers ==0.5.*,
                        mtl ==2.*,
+                       transformers ==0.3.*,
                        either ==4.*,
                        bytestring ==0.10.*,
                        text ==0.11.*,

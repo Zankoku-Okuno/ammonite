@@ -1,5 +1,6 @@
 module Language.Ammonite.Syntax.Printer
     ( showAST
+    , showVal
     ) where
 
 import Data.Ratio

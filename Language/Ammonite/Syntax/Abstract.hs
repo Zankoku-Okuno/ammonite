@@ -6,8 +6,11 @@ import Data.Text (Text)
 import Data.ByteString (ByteString)
 import Data.Sequence (Seq)
 import Data.Map (Map)
-import Data.IORef (IORef)
+import qualified Data.Map as Map
+import Data.IORef
 import Language.Ammonite.Gensym (Gensym)
+
+import Control.Applicative
 
 
 type SourceFile = Text
@@ -19,8 +22,18 @@ type Name = Symbol --FIXME this should be a newtype w/ smart constructors/decons
 type TypeTag = (Gensym, DefMetadata)
 data Env sysval = Env
     { envBindings :: IORef (Map Name (Value sysval))
-    , envParents :: [Env sysval]
+    , envParent :: Maybe (Env sysval)
     }
+    deriving (Eq)
+
+lookupEnv :: Name -> Env sysval -> IO (Maybe (Value sysval))
+lookupEnv x env = do
+    bindings <- readIORef $ envBindings env
+    case Map.lookup x bindings of
+        Just v -> pure $ Just v
+        Nothing -> case envParent env of
+            Nothing -> pure Nothing
+            Just parent -> lookupEnv x parent
 
 
 data Value sysval =
@@ -60,6 +73,7 @@ data Value sysval =
     | EnvVal (Env sysval)
     | ExprVal (Expr sysval)
     | ThunkVal --TODO (memoize result: decide on a thread-safe storage mechanism)
+                -- I have the idea to force all thunks before primitives, so if passing through a channel is prim, then thunks will never be forced except in the thread in which they were created
     
     -- System Types
     | Prim Prim
@@ -74,11 +88,14 @@ data Value sysval =
         -- HandleVal (file handles)
         -- dynamic C library, Ctypes (incl. fixed-width ints and words)
         -- JStypes, call JS functions
+        -- JITed functions
 data ModuleItem sysval = Data Name (Value sysval)
                        | Docstr Text
 
 data Prim =
       Lambda
+    | Neg | Floor | Ceil
+    | Add | Sub | Mul | Div | Exp | Log
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
     deriving (Eq, Show)
 
@@ -95,12 +112,12 @@ data ExprCore sysval =
         , reKw :: (Map Name (Expr sysval))
         , reVarKw :: Maybe (Expr sysval)
         }
+    | QuotedExpr (Expr sysval)
+    | UnquotedExpr (Expr sysval)
     | Exists (Expr sysval) [Route sysval]
     | Access (Expr sysval) [Route sysval]
     | Update (Expr sysval) [Route sysval] (Expr sysval)
     | Delete (Expr sysval) [Route sysval]
-    | QuotedExpr (Expr sysval)
-    | UnquotedExpr (Expr sysval)
     | Ap [Expr sysval]
     | Block [Expr sysval]
 data Route sysval =
@@ -108,20 +125,17 @@ data Route sysval =
     | Index (Expr sysval)
     | Slice (Maybe (Expr sysval)) (Maybe (Expr sysval))
 
-type Continuation sysval = [ContNode sysval]
-data ContNode sysval = Cont
-    { cont :: ContCore sysval
-    , contEnv :: Env sysval
-    , contLoc :: SourceLoc
+
+type Continuation sysval = [Cont sysval]
+type Cont sysval = (ContCore sysval, SourceLoc)
     -- TODO report function and module (contFunc, contMod)
-    }
 data ContCore sysval =
-      HaltCont
-    | StrCont Text {-hole-} Text [(Expr sysval, Text)]
+    -- Compound Data Contruction
+      StrCont Text {-hole-} Text [(Expr sysval, Text)]
     | ListCont (Seq (Value sysval)) {-hole-} (Seq (Expr sysval))
     | StructCont --TODO
     | RecordCont --TODO
     | ExprCont --TODO
+    -- Application
     | OpCont {-hole-} (Expr sysval)
     | ApCont (Value sysval) {-hole-}
-
