@@ -122,13 +122,13 @@ findDistfixes distfixes text = foldl mergeResults NoMatch allMatches
 -- |Attempt to match a single distfix within a text.
 findDistfix :: Distfix a -> [a] -> Maybe (Detection a)
 findDistfix (Distfix shape parts) (Seq.fromList -> text) = case shape of
-    HalfOpenRight   -> goR (False, True) Seq.empty Seq.empty (reverse parts) text
-    OpenRight       -> goR (True, True) Seq.empty Seq.empty (reverse parts) text
-    HalfOpenLeft    -> goL (True, False) Seq.empty Seq.empty parts text
-    OpenLeft        -> goL (True, True) Seq.empty Seq.empty parts text
-    Closed          -> goL (False, False) Seq.empty Seq.empty parts text
-    OpenNon -> let l = goL (True, True) Seq.empty Seq.empty parts text
-                   r = goR (True, True) Seq.empty Seq.empty (reverse parts) text
+    HalfOpenRight   -> goR (False, True) Seq.empty Seq.empty parts text
+    OpenRight       -> goR (True, True) Seq.empty Seq.empty parts text
+    HalfOpenLeft    -> goL (True, False) Seq.empty Seq.empty (reverse parts) text
+    OpenLeft        -> goL (True, True) Seq.empty Seq.empty (reverse parts) text
+    Closed          -> goL (False, False) Seq.empty Seq.empty (reverse parts) text
+    OpenNon -> let l = goL (True, True) Seq.empty Seq.empty (reverse parts) text
+                   r = goR (True, True) Seq.empty Seq.empty parts text
                in case (l, r) of
                    (Just a, Just b) -> if sameMatch a b then l else Nothing
                    (Nothing, Nothing) -> Nothing
@@ -136,23 +136,23 @@ findDistfix (Distfix shape parts) (Seq.fromList -> text) = case shape of
                    (Nothing, Just _) -> r
 
     where
-    goL :: (Bool, Bool) -> Seq a -> Seq (Seq a) -> [a -> Bool] -> Seq a -> Maybe (Detection a)
-    goL (_, needsAfter) parts slots [] (viewl -> EmptyL) =
-        if needsAfter then Nothing else Just $ build shape parts (slots |> Seq.empty)
-    goL _ parts slots [] text = Just $ build shape parts (slots |> text)
-    goL _ parts slots rest (viewl -> EmptyL) = Nothing
-    goL (needsBefore, needsAfter) parts slots (part:rest) text = do
-        (before, the, after) <- findPartL needsBefore part text
-        goL (True, needsAfter) (parts |> the) (slots |> before) rest after
-
     goR :: (Bool, Bool) -> Seq a -> Seq (Seq a) -> [a -> Bool] -> Seq a -> Maybe (Detection a)
-    goR (needsBefore, _) parts slots [] (viewr -> EmptyR) = 
-        if needsBefore then Nothing else Just $ build shape parts (Seq.empty <| slots)
-    goR _ parts slots [] text = Just $ build shape parts (text <| slots)
+    goR (_, needsAfter) parts slots [] (viewl -> EmptyL) =
+        if needsAfter then Nothing else Just $ build shape parts (slots |> Seq.empty)
+    goR _ parts slots [] text = Just $ build shape parts (slots |> text)
     goR _ parts slots rest (viewl -> EmptyL) = Nothing
     goR (needsBefore, needsAfter) parts slots (part:rest) text = do
+        (before, the, after) <- findPartL needsBefore part text
+        goR (True, needsAfter) (parts |> the) (slots |> before) rest after
+
+    goL :: (Bool, Bool) -> Seq a -> Seq (Seq a) -> [a -> Bool] -> Seq a -> Maybe (Detection a)
+    goL (needsBefore, _) parts slots [] (viewr -> EmptyR) = 
+        if needsBefore then Nothing else Just $ build shape parts (Seq.empty <| slots)
+    goL _ parts slots [] text = Just $ build shape parts (text <| slots)
+    goL _ parts slots rest (viewl -> EmptyL) = Nothing
+    goL (needsBefore, needsAfter) parts slots (part:rest) text = do
         (before, the, after) <- findPartR needsAfter part text
-        goR (needsBefore, True) (the <| parts) (after <| slots) rest before
+        goL (needsBefore, True) (the <| parts) (after <| slots) rest before
 
     sameMatch a b = (length <$> detectionSlots a) == (length <$> detectionSlots b)
 
