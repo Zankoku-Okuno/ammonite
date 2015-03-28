@@ -10,10 +10,10 @@ import Language.Ammonite.Interpreter.Machine
 import Language.Ammonite.Syntax.Printer
 
 
-run :: Expr sysval -> Env sysval -> IO (Value sysval)
+run :: Expr sysval -> Env sysval -> IO (Result sysval)
 run prog env = runMachine (eval prog) env
 
-eval :: Expr sysval -> Machine sysval (Value sysval)
+eval :: Expr sysval -> Machine sysval (Result sysval)
 eval (Lit val, _) = reduce val
 eval (Name x, _) = do
     m_val <- lookupCurrentEnv x
@@ -36,10 +36,10 @@ elaborate :: Expr sysval -> Machine sysval (Expr sysval)
 elaborate = error "elaborate unimplemented"
     -- pushes cont, updates location, returns smaller expression
 
-reduce :: Value sysval -> Machine sysval (Value sysval)
-reduce v = maybe (pure v) (reduce' v) =<< popCont
+reduce :: Value sysval -> Machine sysval (Result sysval)
+reduce v = maybe (pure $ Good v) (reduce' v) =<< popCont
     where
-    reduce' :: Value sysval -> Cont sysval -> Machine sysval (Value sysval)
+    reduce' :: Value sysval -> Cont sysval -> Machine sysval (Result sysval)
     --FIXME if it's an operative, don't move to ApCont, go straight to apply
     reduce' f (OpCont arg, pos) = do
         pushCont (ApCont f, pos)
@@ -50,7 +50,7 @@ reduce v = maybe (pure v) (reduce' v) =<< popCont
     -- which may involve tail-calling another elaborate or reduce
 
 
-apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
+apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Result sysval)
 apply (Prim op n args) nextArg pos | n > 1 = reduce (Prim op (n-1) (args ++ [nextArg]))
 apply (Prim Add 1 [v1]) v2 pos = case (v1, v2) of
     (NumVal a, NumVal b) -> reduce $ NumVal (a+b)

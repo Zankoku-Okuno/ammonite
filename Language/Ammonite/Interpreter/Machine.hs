@@ -7,6 +7,7 @@ module Language.Ammonite.Interpreter.Machine
     , reifyEnv
     , pushCont
     , popCont
+    , Result(..)
     ) where
 
 import Control.Applicative
@@ -18,6 +19,10 @@ import Control.Monad.IO.Class
 
 newtype Machine sysval a = Machine { unMachine :: StateT (MachineState sysval) IO a }
     deriving (Functor, Applicative, Monad, MonadIO)
+
+data Result sysval =
+      Good (Value sysval)
+    | Stuck --TODO what needs to be reported?
 
 data MachineState sysval = S
     { msEnv :: Env sysval -- ^ the current environment
