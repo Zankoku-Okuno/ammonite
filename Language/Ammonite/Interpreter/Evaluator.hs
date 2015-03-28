@@ -32,12 +32,9 @@ eval (Ap (viewl -> f :< args), pos) = do
     pushArgs (viewr -> rest :> lastArg) = do
         pushCont (OpCont lastArg, pos)
         pushArgs rest
---TODO block
+eval (Block es, pos) = seqExprs es pos
 eval _ = error $ "eval unimplemented"
 
-elaborate :: Expr sysval -> Machine sysval (Expr sysval)
-elaborate = error "elaborate unimplemented"
-    -- pushes cont, updates location, returns smaller expression
 
 reduce :: Value sysval -> Machine sysval (Value sysval)
 reduce v = maybe (pure v) (flip reduce' v) =<< popCont
@@ -57,12 +54,11 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
                 swapEnv env
                 eval e
     reduce' (ApCont f, pos) v = apply f v pos
+    reduce' (BlockCont es, pos) _ = seqExprs es pos
     reduce' (ThunkCont cell, _) v = do
         liftIO $ writeIORef cell $ Left v
         reduce v
     reduce' k v = error "reduce unimplemented"
-    -- pops cont, places val into context, then resolves that context
-    -- which may involve tail-calling another elaborate or reduce
 
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
@@ -70,3 +66,11 @@ apply (Prim op n args) nextArg pos | n > 1 = reduce (Prim op (n-1) (args ++ [nex
 apply (Prim Add 1 [v1]) v2 pos = case (v1, v2) of
     (NumVal a, NumVal b) -> reduce $ NumVal (a+b)
     _ -> error "type error in add unimplemented"
+
+
+seqExprs :: [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)
+seqExprs [] _ = reduce UnitVal
+seqExprs [e] _ = eval e
+seqExprs (e:rest) pos = do
+    pushCont (BlockCont rest, pos)
+    eval e

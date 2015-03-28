@@ -53,24 +53,38 @@ Desugaring
 Interpretation
 --------------
 
-	[ ] SECD monad
-		[ ] environments
-		[ ] metacontinuation stack
-			[*] user view of continuations
-			[ ] uniform API for manipulating metacont stack as a simple stack
-			[ ] metacont items
-			[ ] continuations per-expression
+	[ ] Environments
+		[ ] binding
+		[*] lookup
+		[ ] deconstructor scope
+	[ ] Machine monad
+		[*] push/pop continuations
+		[*] environment swap
+		[ ] Result type (good | fatal error)
+		[ ] abort
+		[ ] stack marks
+		[ ] capture, capture+abort
 		[ ] thread-local data store
-	[ ] interpreter
+	[ ] MultiMachine
+	[ ] Evaluator
+		[*] self-evaluating terms
+		[ ] structual types
+			[ ] construction
+			[ ] inspection
+			[ ] modification
+		[*] curried primitives
+		[*] thunk forcing
+		[ ] major primitives
+			[ ] make local env
+			[ ] define
+			[ ] match
+			[ ] lambda
+			[ ] vau
+			[ ] eval
+		[ ] applicative call
+		[ ] operative call
 		[ ] pluggable builtins
-		[ ] closure values
-		[ ] binding forms: vau, match, lambda, let
-		[ ] first-class control
-		[ ] barriers
-			[ ] on-wind/unwind/abort handlers
-			[ ] sub-interpreter barrier
-	[ ] concurrent machine
-	[ ] import from other files
+	[ ] Import
 
 
 For Future Reference
@@ -78,3 +92,5 @@ For Future Reference
 
 We can stack loaders, so that one relies on the other.
 So, the loader for evaling files relies on the loader for parsing files relies on the filesystem.
+
+When lambdas bind multiple args at once, it is a seq, not an ap. Ap is for deconstructors.

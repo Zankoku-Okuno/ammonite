@@ -146,3 +146,5 @@ data ContCore sysval =
     -- Application
     | OpCont {-hole-} (Expr sysval)
     | ApCont (Value sysval) {-hole-}
+    -- Sequencing
+    | BlockCont {-hole-} [Expr sysval]
