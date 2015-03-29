@@ -10,6 +10,7 @@ import Control.Monad.IO.Class
 
 import Language.Ammonite.Syntax.Abstract
 import Language.Ammonite.Interpreter.Machine
+import Language.Ammonite.Interpreter.Environment
 import Language.Ammonite.Syntax.Printer
 
 
@@ -45,21 +46,21 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (OpCont arg, pos) f = do
         pushCont (ApCont f, pos)
         eval arg
-    reduce' k@(ApCont f@(PrimAp _ _ _), pos) (ThunkVal thunk_cell) = do
-        thunk <- liftIO $ readIORef thunk_cell
-        case thunk of
-            Left v -> apply f v pos
-            Right (e, env) -> do
-                pushCont k
-                pushCont (ThunkCont thunk_cell, pos)
-                swapEnv env
-                eval e
     reduce' (ApCont f, pos) v = apply f v pos
     reduce' (BlockCont es, pos) _ = seqExprs es pos
     reduce' (ThunkCont cell, _) v = do
         liftIO $ writeIORef cell $ Left v
         reduce v
-    reduce' (MatchCont p, pos) v = match p v
+    reduce' (BindCont p andthen, pos) v = do
+        match p v
+        case andthen of
+            Left v -> reduce v
+            Right e -> eval e
+    reduce' (MatchCont p v andthen, pos) _ = do
+        match p v
+        case andthen of
+            Left v -> reduce v
+            Right e -> eval e
     reduce' k v = error "reduce unimplemented"
 
 form :: Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
@@ -67,12 +68,40 @@ form (PrimForm op n args) next _ | n > 1 = do
     env <- reifyEnv
     reduce (PrimForm op (n-1) (args ++ [(next, env)]))
 form (PrimForm Define 1 [p]) e pos = do
-    pushCont (MatchCont p, pos)
+    pushCont (BindCont p (Left UnitVal), pos)
     eval e
-    --evaluate e, then pattern match it against p, the resulting environment is then used to extend the current
-    --if no match, that's an exception
+form (PrimForm Lambda 1 [bind]) body pos = do
+    let ps = case bind of
+                ((Block ps, _), env) -> flip (,) env <$> ps
+                p -> [p]
+    env <- reifyEnv
+    env' <- liftIO $ childEnv env
+    reduce ClosureVal
+        { opIsApplicative = True
+        , opParameters = ps
+        , opEnv = env'
+        , opBody = body
+        }
+
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
+apply f@(ClosureVal { opParameters = [p] }) v pos = do
+    swapEnv (opEnv f)
+    pushCont (BindCont p (Right $ opBody f), pos)
+    reduce v
+apply f@(ClosureVal { opParameters = (p:ps) }) v pos = do
+    swapEnv (opEnv f)
+    pushCont (BindCont p (Left $ f { opParameters = ps }), pos)
+    reduce v
+apply f@(PrimAp _ _ _) (ThunkVal thunk_cell) pos = do
+    thunk <- liftIO $ readIORef thunk_cell
+    case thunk of
+        Left v -> apply f v pos
+        Right (e, env) -> do
+            pushCont (ApCont f, pos)
+            pushCont (ThunkCont thunk_cell, pos)
+            swapEnv env
+            eval e
 apply (PrimAp op n args) next pos | n > 1 = reduce (PrimAp op (n-1) (args ++ [next]))
 apply (PrimAp Add 1 [v1]) v2 pos = case (v1, v2) of
     (NumVal a, NumVal b) -> reduce $ NumVal (a+b)
@@ -86,8 +115,7 @@ seqExprs (e:rest) pos = do
     pushCont (BlockCont rest, pos)
     eval e
 
-match :: (Expr sysval, Env sysval) -> Value sysval -> Machine sysval (Value sysval)
-match ((Name x, _), _) v = do
-    bindCurrentEnv x v
-    reduce v
+
+match :: Pattern sysval -> Value sysval -> Machine sysval ()
+match ((Name x, _), _) v = bindCurrentEnv x v
 match (dector, env) v = error "unimplemented: match"

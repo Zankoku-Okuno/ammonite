@@ -33,6 +33,8 @@ Parsing
 
 Feature freeze is in effect.
 
+Although, I am considering syntax for `e :: e` and finding a specialized syntax for modules.
+
 
 Desugaring
 ----------
@@ -53,8 +55,10 @@ Desugaring
 Interpretation
 --------------
 
+FIXME: changes lists to seqs where xs ++ [x] occurs
+
 	[ ] Environments
-		[ ] binding
+		[*] binding
 		[*] lookup
 		[ ] deconstructor scope
 	[ ] Machine monad
@@ -75,15 +79,18 @@ Interpretation
 		[*] curried primitives
 		[*] thunk forcing
 		[ ] major primitives
-			[ ] make local env
-			[ ] define
-			[ ] match
+			[*] define
 			[ ] lambda
 			[ ] vau
 			[ ] eval
 		[ ] applicative call
 		[ ] operative call
 		[ ] pluggable builtins
+		[ ] pattern matching
+			[*] names
+			[ ] literals
+			[ ] structural types
+			[ ] deconstructors (ap)
 	[ ] Import
 
 

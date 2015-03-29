@@ -2,6 +2,7 @@ module Language.Ammonite.Interpreter.Environment
     ( emptyEnv
     , stdEnv
     , startEnv
+    , childEnv
     ) where
 
 import Data.Symbol
@@ -33,9 +34,16 @@ startEnv = do
     empty <- emptyEnv
     return $ empty { envParent = Just std }
 
+childEnv :: Env (sysval) -> IO (Env sysval)
+childEnv parent = do
+    empty <- emptyEnv
+    return $ empty { envParent = Just parent }
+
+
 stdBindings :: [(Name, Value sysval)]
 stdBindings = map (\(x, v) -> (intern x, v))
     [ ("_is_", PrimForm Define 2 [])
+    , ("lambda", PrimForm Lambda 2 [])
     
     , ("_+_", PrimAp Add 2 [])
     ]

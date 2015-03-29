@@ -235,7 +235,7 @@ findPartR True p (viewr -> xs :> x) = case Seq.breakr p xs of
     (_, viewl -> EmptyL) -> Nothing
     (after, viewr -> before :> part) -> Just (before, part, after |> x)
 findPartR False p xs = case Seq.breakr p xs of
-    (viewr -> EmptyR, _) -> Nothing
+    (_, viewl -> EmptyL) -> Nothing
     (after, viewr -> before :> part) -> Just (before, part, after)
 
 

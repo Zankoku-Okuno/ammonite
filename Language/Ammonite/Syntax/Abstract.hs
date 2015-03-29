@@ -55,11 +55,10 @@ data Value sysval =
     -- First-class Functions
     | ClosureVal
         { opIsApplicative :: Bool
-        , opArguments :: [Value sysval]
-        , opParameters :: [Expr sysval]
+        , opParameters :: [Pattern sysval]
         , opEnv :: Env sysval
         , opBody :: Expr sysval
-        , opMetadata :: DefMetadata
+        --, opMetadata :: DefMetadata --TODO this metadata really seems to be outside the lambda
         }
     -- First-class Data Types
     | TypeVal TypeTag
@@ -135,6 +134,7 @@ data Route sysval =
     | Index (Expr sysval)
     | Slice (Maybe (Expr sysval)) (Maybe (Expr sysval))
 
+type Pattern sysval = (Expr sysval, Env sysval)
 
 type Continuation sysval = [Cont sysval]
 type Cont sysval = (ContCore sysval, SourceLoc)
@@ -153,4 +153,5 @@ data ContCore sysval =
     | BlockCont {-hole-} [Expr sysval]
     -- other
     | ThunkCont (ThunkCell sysval)
-    | MatchCont (Expr sysval, Env sysval)
+    | BindCont (Expr sysval, Env sysval) {-hole-} (Either (Value sysval) (Expr sysval))
+    | MatchCont (Expr sysval, Env sysval) (Value sysval) (Either (Value sysval) (Expr sysval))
