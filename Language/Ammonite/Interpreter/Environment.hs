@@ -43,7 +43,9 @@ childEnv parent = do
 stdBindings :: [(Name, Value sysval)]
 stdBindings = map (\(x, v) -> (intern x, v))
     [ ("_is_", PrimForm Define 2 [])
+    , ("λ", PrimForm Lambda 2 [])
     , ("lambda", PrimForm Lambda 2 [])
+    , ("vau", PrimForm Vau 3 [])
     
     , ("_+_", PrimAp Add 2 [])
     ]

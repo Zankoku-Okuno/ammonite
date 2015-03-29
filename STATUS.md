@@ -80,8 +80,8 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 		[*] thunk forcing
 		[ ] major primitives
 			[*] define
-			[ ] lambda
-			[ ] vau
+			[*] lambda
+			[*] vau
 			[ ] eval
 		[ ] applicative call
 		[ ] operative call

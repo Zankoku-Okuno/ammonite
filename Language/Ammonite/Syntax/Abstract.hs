@@ -54,8 +54,7 @@ data Value sysval =
     -- TODO ChannelVal (decide on a coherency mechanism)
     -- First-class Functions
     | ClosureVal
-        { opIsApplicative :: Bool
-        , opParameters :: [Pattern sysval]
+        { opParameters :: Either [(Pattern sysval, Pattern sysval)] [Pattern sysval]
         , opEnv :: Env sysval
         , opBody :: Expr sysval
         --, opMetadata :: DefMetadata --TODO this metadata really seems to be outside the lambda
@@ -155,3 +154,13 @@ data ContCore sysval =
     | ThunkCont (ThunkCell sysval)
     | BindCont (Expr sysval, Env sysval) {-hole-} (Either (Value sysval) (Expr sysval))
     | MatchCont (Expr sysval, Env sysval) (Value sysval) (Either (Value sysval) (Expr sysval))
+
+
+
+isApplicative :: Value sysval -> Bool
+isApplicative f@(ClosureVal { opParameters = Left _ }) = False
+isApplicative f@(ClosureVal { opParameters = Right _ }) = True
+isApplicative (PrimAp {}) = True
+isApplicative (PrimForm {}) = False
+isApplicative (SysOp {}) = True
+isApplicative _ = True

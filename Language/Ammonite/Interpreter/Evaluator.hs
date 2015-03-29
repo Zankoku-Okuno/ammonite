@@ -22,7 +22,7 @@ eval (Lit val, _) = reduce val
 eval (Name x, _) = do
     m_val <- lookupCurrentEnv x
     case m_val of
-        Nothing -> error "unimplemented: scope error"
+        Nothing -> error $ "unimplemented: scope error (" ++ show x ++ ")"
         Just val -> reduce val
 --TODO
 eval (Ap (viewl -> f :< args), pos) = do
@@ -41,11 +41,11 @@ reduce :: Value sysval -> Machine sysval (Value sysval)
 reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     where
     reduce' :: Cont sysval -> Value sysval -> Machine sysval (Value sysval)
-    reduce' (OpCont arg, pos) f@(PrimForm _ _ _) = form f arg pos
-    --FIXME if it's an operative, don't move to ApCont, go straight to form
-    reduce' (OpCont arg, pos) f = do
-        pushCont (ApCont f, pos)
-        eval arg
+    reduce' (OpCont arg, pos) f
+        | isApplicative f = do
+            pushCont (ApCont f, pos)
+            eval arg
+        | otherwise = form f arg pos
     reduce' (ApCont f, pos) v = apply f v pos
     reduce' (BlockCont es, pos) _ = seqExprs es pos
     reduce' (ThunkCont cell, _) v = do
@@ -64,6 +64,18 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' k v = error "reduce unimplemented"
 
 form :: Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
+form f@(ClosureVal { opParameters = Left [(env_p, p)] }) e pos = do
+    env <- reifyEnv
+    swapEnv (opEnv f)
+    pushCont (MatchCont p (ExprVal e) (Right $ opBody f), pos)
+    pushCont (BindCont env_p (Left UnitVal), pos)
+    reduce $ EnvVal env
+form f@(ClosureVal { opParameters = Left ((env_p, p):rest) }) e pos = do
+    env <- reifyEnv
+    swapEnv (opEnv f)
+    pushCont (MatchCont p (ExprVal e) (Left $ f { opParameters = Left rest }), pos)
+    pushCont (BindCont env_p (Left UnitVal), pos)
+    reduce $ EnvVal env
 form (PrimForm op n args) next _ | n > 1 = do
     env <- reifyEnv
     reduce (PrimForm op (n-1) (args ++ [(next, env)]))
@@ -74,24 +86,30 @@ form (PrimForm Lambda 1 [bind]) body pos = do
     let ps = case bind of
                 ((Block ps, _), env) -> flip (,) env <$> ps
                 p -> [p]
-    env <- reifyEnv
-    env' <- liftIO $ childEnv env
+    env <- liftIO . childEnv =<< reifyEnv
     reduce ClosureVal
-        { opIsApplicative = True
-        , opParameters = ps
-        , opEnv = env'
+        { opParameters = Right ps
+        , opEnv = env
+        , opBody = body
+        }
+form (PrimForm Vau 1 [envBind, paramBind]) body pos = do
+    let ps = [(envBind, paramBind)]
+    env <- liftIO . childEnv =<< reifyEnv
+    reduce ClosureVal
+        { opParameters = Left ps
+        , opEnv = env
         , opBody = body
         }
 
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
-apply f@(ClosureVal { opParameters = [p] }) v pos = do
+apply f@(ClosureVal { opParameters = Right [p] }) v pos = do
     swapEnv (opEnv f)
     pushCont (BindCont p (Right $ opBody f), pos)
     reduce v
-apply f@(ClosureVal { opParameters = (p:ps) }) v pos = do
+apply f@(ClosureVal { opParameters = Right (p:ps) }) v pos = do
     swapEnv (opEnv f)
-    pushCont (BindCont p (Left $ f { opParameters = ps }), pos)
+    pushCont (BindCont p (Left $ f { opParameters = Right ps }), pos)
     reduce v
 apply f@(PrimAp _ _ _) (ThunkVal thunk_cell) pos = do
     thunk <- liftIO $ readIORef thunk_cell
