@@ -72,10 +72,15 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 	[ ] MultiMachine
 	[ ] Evaluator
 		[*] self-evaluating terms
-		[ ] structual types
-			[ ] construction
+		[ ] basic structual types
+			[*] construction
 			[ ] inspection
 			[ ] modification
+		[ ] record type
+		[ ] expression type
+		[ ] string interpolation
+		[ ] modules
+		[ ] abstract types
 		[*] curried primitives
 		[*] thunk forcing
 		[ ] major primitives
@@ -83,6 +88,7 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[*] lambda
 			[*] vau
 			[ ] eval
+			[ ] modify environments
 		[ ] applicative call
 		[ ] operative call
 		[ ] pluggable builtins
@@ -101,3 +107,6 @@ We can stack loaders, so that one relies on the other.
 So, the loader for evaling files relies on the loader for parsing files relies on the filesystem.
 
 When lambdas bind multiple args at once, it is a seq, not an ap. Ap is for deconstructors.
+
+You know, it might be nice to allow abstract types to be callable and accessible/updatable.
+Not the structural types, though.

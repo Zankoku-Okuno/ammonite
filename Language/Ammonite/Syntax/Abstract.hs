@@ -141,8 +141,8 @@ type Cont sysval = (ContCore sysval, SourceLoc)
 data ContCore sysval =
     -- Compound Data Contruction
       StrCont Text {-hole-} Text [(Expr sysval, Text)]
-    | ListCont (Seq (Value sysval)) {-hole-} (Seq (Expr sysval))
-    | StructCont --TODO
+    | ListCont (Seq (Value sysval)) {-hole-} [Expr sysval]
+    | StructCont (Map Name (Value sysval)) Name {-hole-} [(Name, (Expr sysval))]
     | RecordCont --TODO
     | ExprCont --TODO
     -- Application

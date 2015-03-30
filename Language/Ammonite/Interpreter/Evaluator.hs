@@ -1,7 +1,9 @@
 {-#LANGUAGE ViewPatterns #-}
 module Language.Ammonite.Interpreter.Evaluator where
 
-import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..))
+import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
+import qualified Data.Sequence as Seq
+import qualified Data.Map as Map
 import Data.IORef
 
 import Control.Applicative
@@ -24,6 +26,14 @@ eval (Name x, _) = do
     case m_val of
         Nothing -> error $ "unimplemented: scope error (" ++ show x ++ ")"
         Just val -> reduce val
+eval (ListExpr [], _) = reduce $ ListVal Seq.empty
+eval (ListExpr (e:es), pos) = do
+    pushCont (ListCont Seq.empty es, pos)
+    eval e
+eval (StructExpr (Map.toList -> []), _) = reduce $ StructVal Map.empty
+eval (StructExpr (Map.toList -> (x,e):fields), pos) = do
+    pushCont (StructCont Map.empty x fields, pos)
+    eval e
 --TODO
 eval (Ap (viewl -> f :< args), pos) = do
         pushArgs args
@@ -41,6 +51,15 @@ reduce :: Value sysval -> Machine sysval (Value sysval)
 reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     where
     reduce' :: Cont sysval -> Value sysval -> Machine sysval (Value sysval)
+    reduce' (ListCont vs [], pos) v = reduce $ ListVal (vs |> v)
+    reduce' (ListCont vs (e:es), pos) v = do
+        pushCont (ListCont (vs |> v) es, pos)
+        eval e
+    reduce' (StructCont s x [], pos) v = reduce $ StructVal (Map.insert x v s)
+    reduce' (StructCont s x ((y,e):fields), pos) v = do
+        pushCont (StructCont (Map.insert x v s) y fields, pos)
+        eval e
+    --TODO
     reduce' (OpCont arg, pos) f
         | isApplicative f = do
             pushCont (ApCont f, pos)
