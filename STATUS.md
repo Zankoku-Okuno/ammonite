@@ -69,6 +69,7 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 		[ ] stack marks
 		[ ] capture, capture+abort
 		[ ] thread-local data store
+		[ ] redo gensyms to use UUID
 	[ ] MultiMachine
 	[ ] Evaluator
 		[*] self-evaluating terms
@@ -80,11 +81,10 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[ ] field/index delete
 			[ ] slicing
 			[ ] records
-			[ ] environments
+			[*] environments
 			[ ] expressions
 			[ ] modules
 		[ ] string interpolation
-		[ ] modules
 		[ ] abstract types
 		[*] curried primitives
 		[*] thunk forcing
@@ -93,7 +93,6 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[*] lambda
 			[*] vau
 			[ ] eval
-			[ ] modify environments
 		[*] applicative call
 		[*] operative call
 		[ ] pluggable builtins

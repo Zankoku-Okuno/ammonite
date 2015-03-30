@@ -72,8 +72,9 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     --TODO
     -- Structure Tranversal
     reduce' (ExistsCont [], pos) v = reduce TrueVal
-    reduce' (ExistsCont (Field x:r), pos) v =
-        case v `getField` x of
+    reduce' (ExistsCont (Field x:r), pos) v = do
+        it <- liftIO $ v `getField` x
+        case it of
             Nothing -> reduce FalseVal
             Just subv -> do
                 pushCont (ExistsCont r, pos)
@@ -89,8 +90,9 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
                 pushCont (ExistsCont r, pos)
                 reduce subv
     reduce' (AccessCont [], pos) v = reduce v
-    reduce' (AccessCont (Field x:r), pos) v =
-        case v `getField` x of
+    reduce' (AccessCont (Field x:r), pos) v = do
+        it <- liftIO $ v `getField` x
+        case it of
             Nothing -> error "unimplemented: raise an access error"
             Just subv -> do
                 pushCont (AccessCont r, pos)
@@ -206,10 +208,11 @@ match ((Name x, _), _) v = bindCurrentEnv x v
 match (dector, env) v = error "unimplemented: match"
 
 
-getField :: Value sysval -> Name -> Maybe (Value sysval)
-getField (StructVal s) x = Map.lookup x s
-getField (RecordVal _ kw) x = Map.lookup x kw
-getField _ _ = Nothing
+getField :: Value sysval -> Name -> IO (Maybe (Value sysval))
+getField (StructVal s) x = pure $ Map.lookup x s
+getField (RecordVal _ kw) x = pure $ Map.lookup x kw
+getField (EnvVal cell) x = lookupEnv x cell
+getField _ _ = pure Nothing
 
 getIndex :: Value sysval -> Value sysval -> Either (Value sysval) (Maybe (Value sysval))
 getIndex v (NumVal r@(numerator -> i)) | denominator r == 1 = Right $ go v (fromIntegral i) --FIXME what if someone passes an integer that's too big for Int?
