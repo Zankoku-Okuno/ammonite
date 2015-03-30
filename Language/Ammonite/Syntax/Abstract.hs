@@ -35,6 +35,13 @@ lookupEnv x env = do
             Nothing -> pure Nothing
             Just parent -> lookupEnv x parent
 
+bindEnv :: Name -> Value sysval -> Env sysval -> IO ()
+--FIXME I think changing an environment other than extending it could be very bad for compilation, even JIT compilation
+--even extension could be bad, if it introduces shadowing
+bindEnv x v env =
+    modifyIORef (envBindings env) $ Map.insert x v
+    
+
 
 data Value sysval =
     -- Primitive Types
@@ -152,6 +159,10 @@ data ContCore sysval =
     | ExistsIndexCont (Value sysval) {-hole-} [Route sysval]
     | AccessCont {-hole-} [Route sysval]
     | AccessIndexCont (Value sysval) {-hole-} [Route sysval]
+    | UpdateCont {-hole-} [Route sysval] (Expr sysval)
+    | UpdateIndexCont (Value sysval) {-hole-} [Route sysval] (Expr sysval)
+    | UpdateFieldToCont (Value sysval) Name {-hole-}
+    | UpdateIndexToCont (Value sysval) (Value sysval) {-hole-}
     -- Application
     | OpCont {-hole-} (Expr sysval)
     | ApCont (Value sysval) {-hole-}

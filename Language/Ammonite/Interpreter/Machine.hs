@@ -60,9 +60,8 @@ lookupCurrentEnv x = Machine $ do
     liftIO $ lookupEnv x env
 
 bindCurrentEnv :: Name -> Value sysval -> Machine sysval ()
-bindCurrentEnv x v = Machine $ do
-    env <- gets msEnv
-    liftIO $ modifyIORef (envBindings env) $ Map.insert x v
+bindCurrentEnv x v = Machine $
+    liftIO . bindEnv x v =<< gets msEnv
 
 swapEnv :: Env sysval -> Machine sysval ()
 swapEnv env' = do

@@ -34,6 +34,7 @@ Parsing
 Feature freeze is in effect.
 
 Although, I am considering syntax for `e :: e` and finding a specialized syntax for modules.
+And I feel like I could really use a VoidExpr, which could be used for match any w/o binding. 
 
 
 Desugaring
@@ -77,7 +78,7 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[*] struct/list construction
 			[*] field/index exists
 			[*] field/index access
-			[ ] field/index update
+			[*] field/index update
 			[ ] field/index delete
 			[ ] slicing
 			[ ] records
@@ -92,6 +93,7 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[*] define
 			[*] lambda
 			[*] vau
+			[ ] env manipulation
 			[ ] eval
 		[*] applicative call
 		[*] operative call

@@ -43,6 +43,9 @@ eval (Exists e r, pos) = do
 eval (Access e r, pos) = do
     pushCont (AccessCont r, pos)
     eval e
+eval (Update e r e', pos) = do
+    pushCont (UpdateCont r e', pos)
+    eval e
 --TODO
 eval (Ap (viewl -> f :< args), pos) = do
         pushArgs args
@@ -107,6 +110,39 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
             Right (Just subv) -> do
                 pushCont (AccessCont r, pos)
                 reduce subv
+    reduce' (UpdateCont [] e', pos) _ = eval e'
+    reduce' (UpdateCont [Field x] e', pos) v = do
+        pushCont (UpdateFieldToCont v x, pos)
+        eval e'
+    reduce' (UpdateCont (Field x:r) e', pos) v = do
+        it <- liftIO $ v `getField` x
+        case it of
+            Nothing -> error "unimplemented: raise an access error"
+            Just subv -> do
+                pushCont (UpdateFieldToCont v x, pos)
+                pushCont (UpdateCont r e', pos)
+                reduce subv
+    reduce' (UpdateCont (Index i:r) e', pos) v = do
+        pushCont (UpdateIndexCont v r e', pos)
+        eval i
+    reduce' (UpdateIndexCont v r e', pos) i = do
+        case v `getIndex` i of
+            Left i -> error "unimplemented: raise type error when index is not an int"
+            Right Nothing -> error "unimplemented: raise an update error"
+            Right (Just subv) -> do
+                pushCont (UpdateIndexToCont v i, pos)
+                pushCont (UpdateCont r e', pos)
+                reduce subv
+    reduce' (UpdateFieldToCont v x, pos) subv = do
+        it <- liftIO $ (v `setField` x) subv
+        case it of
+            Nothing -> error "unimplemented: raise an update error"
+            Just v' -> reduce v'
+    reduce' (UpdateIndexToCont v i, pos) subv = do
+        case (v `setIndex` i) subv of
+            Left i -> error "unimplemented: raise type error when index is not an int"
+            Right Nothing -> error "unimplemented: raise an access error"
+            Right (Just v') -> reduce v'
     --TODO
     -- Application
     reduce' (OpCont arg, pos) f
@@ -214,15 +250,39 @@ getField (RecordVal _ kw) x = pure $ Map.lookup x kw
 getField (EnvVal cell) x = lookupEnv x cell
 getField _ _ = pure Nothing
 
+setField :: Value sysval -> Name -> Value sysval -> IO (Maybe (Value sysval))
+setField (StructVal s) x subv = pure . Just . StructVal $ Map.insert x subv s
+setField (RecordVal pos kw) x subv = pure . Just . RecordVal pos $ Map.insert x subv kw
+setField (EnvVal cell) x subv = Just (EnvVal cell) <$ bindEnv x subv cell
+setField _ _ _ = pure Nothing
+
+
+toIndex :: Value sysval -> Maybe Int
+--FIXME what if someone passes an integer that's too big for Int?
+toIndex (NumVal r@(numerator -> i)) | denominator r == 1 = Just $ fromIntegral i
+toIndex _ = Nothing
+
 getIndex :: Value sysval -> Value sysval -> Either (Value sysval) (Maybe (Value sysval))
-getIndex v (NumVal r@(numerator -> i)) | denominator r == 1 = Right $ go v (fromIntegral i) --FIXME what if someone passes an integer that's too big for Int?
+getIndex v (toIndex -> Just i) = Right $ go v i
     where
     go (ListVal xs) i = seqIx xs i
     go (RecordVal pos _) i = seqIx pos i
     go _ _ = Nothing
 getIndex _ i = Left i
 
-seqIx :: Seq a -> Int -> Maybe a
+setIndex :: Value sysval -> Value sysval -> Value sysval -> Either (Value sysval) (Maybe (Value sysval))
+setIndex v (toIndex -> Just i) subv = Right $ case v of
+    ListVal xs -> ListVal <$> seqUpdate xs i subv
+    RecordVal pos kw -> flip RecordVal kw <$> seqUpdate pos i subv
+    _ -> Nothing
+setIndex _ i _ = Left i
+
+seqIx :: Seq (Value sysval) -> Int -> Maybe (Value sysval)
 seqIx xs i | 0 <= i && i < Seq.length xs = Just $ Seq.index xs i
            | (-(Seq.length xs)) <= i && i < 0 = Just $ Seq.index xs (Seq.length xs + i)
            | otherwise = Nothing
+
+seqUpdate :: Seq (Value sysval) -> Int -> Value sysval -> Maybe (Seq (Value sysval))
+seqUpdate xs i v' | 0 <= i && i < Seq.length xs = Just $ Seq.update i v' xs
+                  | (-(Seq.length xs)) <= i && i < 0 = Just $ Seq.update (Seq.length xs + i) v' xs
+                  | otherwise = Nothing
