@@ -110,9 +110,10 @@ data ModuleItem sysval = Data Name (Value sysval)
 type ThunkCell sysval = IORef (Either (Value sysval) (Expr sysval, Env sysval))
 
 data Prim =
-      Define | Vau | Lambda
+      Define | Vau | Lambda | Eval
     | Neg | Floor | Ceil
     | Add | Sub | Mul | Div | Exp | Log
+    | NewEnv | Lazy | Force
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
     deriving (Eq, Show)
 

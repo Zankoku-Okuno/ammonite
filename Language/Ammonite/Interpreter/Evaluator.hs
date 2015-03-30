@@ -226,9 +226,22 @@ apply f@(PrimAp _ _ _) (ThunkVal thunk_cell) pos = do
             swapEnv env
             eval e
 apply (PrimAp op n args) next pos | n > 1 = reduce (PrimAp op (n-1) (args ++ [next]))
+apply (PrimAp Eval 1 [v1]) v2 pos = case (v1, v2) of
+    (ExprVal body, EnvVal env) -> do
+        swapEnv env
+        eval body
 apply (PrimAp Add 1 [v1]) v2 pos = case (v1, v2) of
     (NumVal a, NumVal b) -> reduce $ NumVal (a+b)
     _ -> error "type error in add unimplemented"
+apply (PrimAp NewEnv 1 [bindings]) parent pos = case (bindings, parent) of
+    (StructVal s, UnitVal) -> do
+        cell <- liftIO $ newIORef s
+        reduce $ EnvVal $ Env cell Nothing
+    (StructVal s, EnvVal env) -> do
+        cell <- liftIO $ newIORef s
+        reduce $ EnvVal $ Env cell (Just env)
+    _ -> error "type error in NewEnv unimplemented"
+
 
 
 seqExprs :: [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)

@@ -88,13 +88,7 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 		[ ] string interpolation
 		[ ] abstract types
 		[*] curried primitives
-		[*] thunk forcing
-		[ ] major primitives
-			[*] define
-			[*] lambda
-			[*] vau
-			[ ] env manipulation
-			[ ] eval
+		[*] major primitives
 		[*] applicative call
 		[*] operative call
 		[ ] pluggable builtins
