@@ -1,7 +1,9 @@
 {-#LANGUAGE ViewPatterns #-}
 module Language.Ammonite.Interpreter.Evaluator where
 
+import Data.Ratio
 import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
 import Data.IORef
@@ -35,6 +37,13 @@ eval (StructExpr (Map.toList -> (x,e):fields), pos) = do
     pushCont (StructCont Map.empty x fields, pos)
     eval e
 --TODO
+eval (Exists e r, pos) = do
+    pushCont (ExistsCont r, pos)
+    eval e
+eval (Access e r, pos) = do
+    pushCont (AccessCont r, pos)
+    eval e
+--TODO
 eval (Ap (viewl -> f :< args), pos) = do
         pushArgs args
         eval f
@@ -50,6 +59,7 @@ eval _ = error $ "eval unimplemented"
 reduce :: Value sysval -> Machine sysval (Value sysval)
 reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     where
+    -- Compound Data Contruction
     reduce' :: Cont sysval -> Value sysval -> Machine sysval (Value sysval)
     reduce' (ListCont vs [], pos) v = reduce $ ListVal (vs |> v)
     reduce' (ListCont vs (e:es), pos) v = do
@@ -60,12 +70,50 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
         pushCont (StructCont (Map.insert x v s) y fields, pos)
         eval e
     --TODO
+    -- Structure Tranversal
+    reduce' (ExistsCont [], pos) v = reduce TrueVal
+    reduce' (ExistsCont (Field x:r), pos) v =
+        case v `getField` x of
+            Nothing -> reduce FalseVal
+            Just subv -> do
+                pushCont (ExistsCont r, pos)
+                reduce subv
+    reduce' (ExistsCont (Index e:r), pos) v = do
+        pushCont (ExistsIndexCont v r, pos)
+        eval e
+    reduce' (ExistsIndexCont v r, pos) i =
+        case v `getIndex` i of
+            Left i -> error "unimplemented: raise type error when index is not an int"
+            Right Nothing -> reduce FalseVal
+            Right (Just subv) -> do
+                pushCont (ExistsCont r, pos)
+                reduce subv
+    reduce' (AccessCont [], pos) v = reduce v
+    reduce' (AccessCont (Field x:r), pos) v =
+        case v `getField` x of
+            Nothing -> error "unimplemented: raise an access error"
+            Just subv -> do
+                pushCont (AccessCont r, pos)
+                reduce subv
+    reduce' (AccessCont (Index e:r), pos) v = do
+        pushCont (AccessIndexCont v r, pos)
+        eval e
+    reduce' (AccessIndexCont v r, pos) i =
+        case v `getIndex` i of
+            Left i -> error "unimplemented: raise type error when index is not an int"
+            Right Nothing -> error "unimplemented: raise an access error"
+            Right (Just subv) -> do
+                pushCont (AccessCont r, pos)
+                reduce subv
+    --TODO
+    -- Application
     reduce' (OpCont arg, pos) f
         | isApplicative f = do
             pushCont (ApCont f, pos)
             eval arg
         | otherwise = form f arg pos
     reduce' (ApCont f, pos) v = apply f v pos
+    -- Other
     reduce' (BlockCont es, pos) _ = seqExprs es pos
     reduce' (ThunkCont cell, _) v = do
         liftIO $ writeIORef cell $ Left v
@@ -156,3 +204,22 @@ seqExprs (e:rest) pos = do
 match :: Pattern sysval -> Value sysval -> Machine sysval ()
 match ((Name x, _), _) v = bindCurrentEnv x v
 match (dector, env) v = error "unimplemented: match"
+
+
+getField :: Value sysval -> Name -> Maybe (Value sysval)
+getField (StructVal s) x = Map.lookup x s
+getField (RecordVal _ kw) x = Map.lookup x kw
+getField _ _ = Nothing
+
+getIndex :: Value sysval -> Value sysval -> Either (Value sysval) (Maybe (Value sysval))
+getIndex v (NumVal r@(numerator -> i)) | denominator r == 1 = Right $ go v (fromIntegral i) --FIXME what if someone passes an integer that's too big for Int?
+    where
+    go (ListVal xs) i = seqIx xs i
+    go (RecordVal pos _) i = seqIx pos i
+    go _ _ = Nothing
+getIndex _ i = Left i
+
+seqIx :: Seq a -> Int -> Maybe a
+seqIx xs i | 0 <= i && i < Seq.length xs = Just $ Seq.index xs i
+           | (-(Seq.length xs)) <= i && i < 0 = Just $ Seq.index xs (Seq.length xs + i)
+           | otherwise = Nothing

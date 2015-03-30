@@ -72,12 +72,17 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 	[ ] MultiMachine
 	[ ] Evaluator
 		[*] self-evaluating terms
-		[ ] basic structual types
-			[*] construction
-			[ ] inspection
-			[ ] modification
-		[ ] record type
-		[ ] expression type
+		[ ] compound data
+			[*] struct/list construction
+			[*] field/index exists
+			[*] field/index access
+			[ ] field/index update
+			[ ] field/index delete
+			[ ] slicing
+			[ ] records
+			[ ] environments
+			[ ] expressions
+			[ ] modules
 		[ ] string interpolation
 		[ ] modules
 		[ ] abstract types
@@ -89,14 +94,16 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[*] vau
 			[ ] eval
 			[ ] modify environments
-		[ ] applicative call
-		[ ] operative call
+		[*] applicative call
+		[*] operative call
 		[ ] pluggable builtins
 		[ ] pattern matching
 			[*] names
 			[ ] literals
 			[ ] structural types
 			[ ] deconstructors (ap)
+			[ ] expressions
+		[ ] first-class control
 	[ ] Import
 
 

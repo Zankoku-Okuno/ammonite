@@ -37,12 +37,14 @@ lookupEnv x env = do
 
 
 data Value sysval =
-    -- Structured Types
+    -- Primitive Types
       UnitVal
+    | TrueVal | FalseVal
     | NumVal Rational
     | ChrVal Char
     | StrVal Text
     | BytesVal ByteString
+    -- Structured Types
     | ListVal (Seq (Value sysval))
     | StructVal (Map Name (Value sysval))
     | RecordVal
@@ -145,6 +147,11 @@ data ContCore sysval =
     | StructCont (Map Name (Value sysval)) Name {-hole-} [(Name, (Expr sysval))]
     | RecordCont --TODO
     | ExprCont --TODO
+    -- Structure Tranversal
+    | ExistsCont {-hole-} [Route sysval]
+    | ExistsIndexCont (Value sysval) {-hole-} [Route sysval]
+    | AccessCont {-hole-} [Route sysval]
+    | AccessIndexCont (Value sysval) {-hole-} [Route sysval]
     -- Application
     | OpCont {-hole-} (Expr sysval)
     | ApCont (Value sysval) {-hole-}

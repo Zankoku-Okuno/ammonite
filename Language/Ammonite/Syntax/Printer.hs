@@ -15,6 +15,8 @@ import Language.Ammonite.Syntax.Abstract as AST
 
 showVal :: Show sysval => Value sysval -> String
 showVal UnitVal = "()"
+showVal TrueVal = "true"
+showVal FalseVal = "false"
 showVal (NumVal n) | denom == 1 = show numer
                    | otherwise = show numer ++ "/" ++ show denom
     where (numer, denom) = (numerator n, denominator n)

@@ -48,4 +48,7 @@ stdBindings = map (\(x, v) -> (intern x, v))
     , ("vau", PrimForm Vau 3 [])
     
     , ("_+_", PrimAp Add 2 [])
+
+    , ("true", TrueVal)
+    , ("false", FalseVal)
     ]
