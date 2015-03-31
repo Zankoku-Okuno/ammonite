@@ -1,62 +1,61 @@
 {-#LANGUAGE ViewPatterns #-}
-module Language.Ammonite.Interpreter.Evaluator where
+module Language.Ammonite.Interpreter.Evaluator (eval) where
 
-import Data.Ratio
+import Data.IORef
 import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
-import Data.IORef
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class
 
 import Language.Ammonite.Syntax.Abstract
+import Language.Ammonite.Interpreter.Data
 import Language.Ammonite.Interpreter.Machine
 import Language.Ammonite.Interpreter.Environment
 import Language.Ammonite.Syntax.Printer
 
 
-run :: Expr sysval -> Env sysval -> IO (Result sysval)
-run prog env = Good <$> runMachine (eval prog) env
+eval :: Expr sysval -> Env sysval -> IO (Result sysval)
+eval prog env = Good <$> runMachine (elaborate prog) env
 
-eval :: Expr sysval -> Machine sysval (Value sysval)
-eval (Lit val, _) = reduce val
-eval (Name x, _) = do
+elaborate :: Expr sysval -> Machine sysval (Value sysval)
+elaborate (Lit val, _) = reduce val
+elaborate (Name x, _) = do
     m_val <- lookupCurrentEnv x
     case m_val of
         Nothing -> error $ "unimplemented: scope error (" ++ show x ++ ")"
         Just val -> reduce val
-eval (ListExpr [], _) = reduce $ ListVal Seq.empty
-eval (ListExpr (e:es), pos) = do
+elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
+elaborate (ListExpr (e:es), pos) = do
     pushCont (ListCont Seq.empty es, pos)
-    eval e
-eval (StructExpr (Map.toList -> []), _) = reduce $ StructVal Map.empty
-eval (StructExpr (Map.toList -> (x,e):fields), pos) = do
+    elaborate e
+elaborate (StructExpr (Map.toList -> []), _) = reduce $ StructVal Map.empty
+elaborate (StructExpr (Map.toList -> (x,e):fields), pos) = do
     pushCont (StructCont Map.empty x fields, pos)
-    eval e
+    elaborate e
 --TODO
-eval (Exists e r, pos) = do
+elaborate (Exists e r, pos) = do
     pushCont (ExistsCont r, pos)
-    eval e
-eval (Access e r, pos) = do
+    elaborate e
+elaborate (Access e r, pos) = do
     pushCont (AccessCont r, pos)
-    eval e
-eval (Update e r e', pos) = do
+    elaborate e
+elaborate (Update e r e', pos) = do
     pushCont (UpdateCont r e', pos)
-    eval e
+    elaborate e
 --TODO
-eval (Ap (viewl -> f :< args), pos) = do
+elaborate (Ap (viewl -> f :< args), pos) = do
         pushArgs args
-        eval f
+        elaborate f
     where
     pushArgs (viewr -> EmptyR) = pure ()
     pushArgs (viewr -> rest :> lastArg) = do
         pushCont (OpCont lastArg, pos)
         pushArgs rest
-eval (Block es, pos) = seqExprs es pos
-eval _ = error $ "eval unimplemented"
+elaborate (Block es, pos) = seqExprs es pos
+elaborate _ = error $ "elaborate unimplemented"
 
 
 reduce :: Value sysval -> Machine sysval (Value sysval)
@@ -67,11 +66,11 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (ListCont vs [], pos) v = reduce $ ListVal (vs |> v)
     reduce' (ListCont vs (e:es), pos) v = do
         pushCont (ListCont (vs |> v) es, pos)
-        eval e
+        elaborate e
     reduce' (StructCont s x [], pos) v = reduce $ StructVal (Map.insert x v s)
     reduce' (StructCont s x ((y,e):fields), pos) v = do
         pushCont (StructCont (Map.insert x v s) y fields, pos)
-        eval e
+        elaborate e
     --TODO
     -- Structure Tranversal
     reduce' (ExistsCont [], pos) v = reduce TrueVal
@@ -84,7 +83,7 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
                 reduce subv
     reduce' (ExistsCont (Index e:r), pos) v = do
         pushCont (ExistsIndexCont v r, pos)
-        eval e
+        elaborate e
     reduce' (ExistsIndexCont v r, pos) i =
         case v `getIndex` i of
             Left i -> error "unimplemented: raise type error when index is not an int"
@@ -102,7 +101,7 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
                 reduce subv
     reduce' (AccessCont (Index e:r), pos) v = do
         pushCont (AccessIndexCont v r, pos)
-        eval e
+        elaborate e
     reduce' (AccessIndexCont v r, pos) i =
         case v `getIndex` i of
             Left i -> error "unimplemented: raise type error when index is not an int"
@@ -110,10 +109,10 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
             Right (Just subv) -> do
                 pushCont (AccessCont r, pos)
                 reduce subv
-    reduce' (UpdateCont [] e', pos) _ = eval e'
+    reduce' (UpdateCont [] e', pos) _ = elaborate e'
     reduce' (UpdateCont [Field x] e', pos) v = do
         pushCont (UpdateFieldToCont v x, pos)
-        eval e'
+        elaborate e'
     reduce' (UpdateCont (Field x:r) e', pos) v = do
         it <- liftIO $ v `getField` x
         case it of
@@ -124,7 +123,7 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
                 reduce subv
     reduce' (UpdateCont (Index i:r) e', pos) v = do
         pushCont (UpdateIndexCont v r e', pos)
-        eval i
+        elaborate i
     reduce' (UpdateIndexCont v r e', pos) i = do
         case v `getIndex` i of
             Left i -> error "unimplemented: raise type error when index is not an int"
@@ -148,7 +147,7 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (OpCont arg, pos) f
         | isApplicative f = do
             pushCont (ApCont f, pos)
-            eval arg
+            elaborate arg
         | otherwise = form f arg pos
     reduce' (ApCont f, pos) v = apply f v pos
     -- Other
@@ -160,13 +159,14 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
         match p v
         case andthen of
             Left v -> reduce v
-            Right e -> eval e
+            Right e -> elaborate e
     reduce' (MatchCont p v andthen, pos) _ = do
         match p v
         case andthen of
             Left v -> reduce v
-            Right e -> eval e
+            Right e -> elaborate e
     reduce' k v = error "reduce unimplemented"
+
 
 form :: Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
 form f@(ClosureVal { opParameters = Left [(env_p, p)] }) e pos = do
@@ -181,30 +181,12 @@ form f@(ClosureVal { opParameters = Left ((env_p, p):rest) }) e pos = do
     pushCont (MatchCont p (ExprVal e) (Left $ f { opParameters = Left rest }), pos)
     pushCont (BindCont env_p (Left UnitVal), pos)
     reduce $ EnvVal env
+form (PrimForm op 1 args) next pos = do
+    env <- reifyEnv
+    primForm op (args ++ [(next, env)]) pos
 form (PrimForm op n args) next _ | n > 1 = do
     env <- reifyEnv
     reduce (PrimForm op (n-1) (args ++ [(next, env)]))
-form (PrimForm Define 1 [p]) e pos = do
-    pushCont (BindCont p (Left UnitVal), pos)
-    eval e
-form (PrimForm Lambda 1 [bind]) body pos = do
-    let ps = case bind of
-                ((Block ps, _), env) -> flip (,) env <$> ps
-                p -> [p]
-    env <- liftIO . childEnv =<< reifyEnv
-    reduce ClosureVal
-        { opParameters = Right ps
-        , opEnv = env
-        , opBody = body
-        }
-form (PrimForm Vau 1 [envBind, paramBind]) body pos = do
-    let ps = [(envBind, paramBind)]
-    env <- liftIO . childEnv =<< reifyEnv
-    reduce ClosureVal
-        { opParameters = Left ps
-        , opEnv = env
-        , opBody = body
-        }
 
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
@@ -226,32 +208,11 @@ apply f@(PrimAp _ _ _) (ThunkVal thunk_cell) pos = do
             pushCont (ApCont f, pos)
             pushCont (ThunkCont thunk_cell, pos)
             swapEnv env
-            eval e
-apply (PrimAp op n args) next pos | n > 1 = reduce (PrimAp op (n-1) (args ++ [next]))
-apply (PrimAp Eval 1 [v1]) v2 pos = case (v1, v2) of
-    (ExprVal body, EnvVal env) -> do
-        swapEnv env
-        eval body
-apply (PrimAp Add 1 [v1]) v2 pos = case (v1, v2) of
-    (NumVal a, NumVal b) -> reduce $ NumVal (a+b)
-    _ -> error "type error in add unimplemented"
-apply (PrimAp NewEnv 1 [bindings]) parent pos = case (bindings, parent) of
-    (StructVal s, UnitVal) -> do
-        cell <- liftIO $ newIORef s
-        reduce $ EnvVal $ Env cell Nothing
-    (StructVal s, EnvVal env) -> do
-        cell <- liftIO $ newIORef s
-        reduce $ EnvVal $ Env cell (Just env)
-    _ -> error "type error in NewEnv unimplemented"
-
-
-
-seqExprs :: [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)
-seqExprs [] _ = reduce UnitVal
-seqExprs [e] _ = eval e
-seqExprs (e:rest) pos = do
-    pushCont (BlockCont rest, pos)
-    eval e
+            elaborate e
+apply (PrimAp op 0 args) next pos = do
+    applyPrim op (args ++ [next]) pos
+apply (PrimAp op n args) next pos | n > 1 =
+    reduce (PrimAp op (n-1) (args ++ [next]))
 
 
 match :: Pattern sysval -> Value sysval -> Machine sysval ()
@@ -259,45 +220,70 @@ match ((Name x, _), _) v = bindCurrentEnv x v
 match (dector, env) v = error "unimplemented: match"
 
 
-getField :: Value sysval -> Name -> IO (Maybe (Value sysval))
-getField (StructVal s) x = pure $ Map.lookup x s
-getField (RecordVal _ kw) x = pure $ Map.lookup x kw
-getField (EnvVal cell) x = lookupEnv x cell
-getField _ _ = pure Nothing
 
-setField :: Value sysval -> Name -> Value sysval -> IO (Maybe (Value sysval))
-setField (StructVal s) x subv = pure . Just . StructVal $ Map.insert x subv s
-setField (RecordVal pos kw) x subv = pure . Just . RecordVal pos $ Map.insert x subv kw
-setField (EnvVal cell) x subv = Just (EnvVal cell) <$ bindEnv x subv cell
-setField _ _ _ = pure Nothing
+primForm :: Prim -> [(Expr sysval, Env sysval)] -> SourceLoc -> Machine sysval (Value sysval)
+primForm Define [p, (e, _)] pos = do
+    pushCont (BindCont p (Left UnitVal), pos)
+    elaborate e
+primForm Lambda [bind, (body, env)] _ = do
+    let ps = case bind of
+                ((Block ps, _), pat_env) -> flip (,) pat_env <$> ps
+                p -> [p]
+    reduce ClosureVal
+        { opParameters = Right ps
+        , opEnv = env
+        , opBody = body
+        }
+primForm Vau [envBind, paramBind, (body, env)] _ = do
+    let ps = [(envBind, paramBind)]
+    reduce ClosureVal
+        { opParameters = Left ps
+        , opEnv = env
+        , opBody = body
+        }
 
 
-toIndex :: Value sysval -> Maybe Int
---FIXME what if someone passes an integer that's too big for Int?
-toIndex (NumVal r@(numerator -> i)) | denominator r == 1 = Just $ fromIntegral i
-toIndex _ = Nothing
+applyPrim :: Prim -> [Value sysval] -> SourceLoc -> Machine sysval (Value sysval) 
 
-getIndex :: Value sysval -> Value sysval -> Either (Value sysval) (Maybe (Value sysval))
-getIndex v (toIndex -> Just i) = Right $ go v i
-    where
-    go (ListVal xs) i = seqIx xs i
-    go (RecordVal pos _) i = seqIx pos i
-    go _ _ = Nothing
-getIndex _ i = Left i
+applyPrim Eval [ExprVal body, EnvVal env] _ = do
+    swapEnv env
+    elaborate body
+applyPrim Eval _ _ = error "unimplemented: type error in elaborate"
 
-setIndex :: Value sysval -> Value sysval -> Value sysval -> Either (Value sysval) (Maybe (Value sysval))
-setIndex v (toIndex -> Just i) subv = Right $ case v of
-    ListVal xs -> ListVal <$> seqUpdate xs i subv
-    RecordVal pos kw -> flip RecordVal kw <$> seqUpdate pos i subv
-    _ -> Nothing
-setIndex _ i _ = Left i
+applyPrim NewCue [UnitVal] pos = do
+    c <- newCue
+    reduce $ CueVal c (pos, Nothing)
+applyPrim NewCue [StrVal desc] pos = do
+    c <- newCue
+    reduce $ CueVal c (pos, Just desc)
+applyPrim NewCue _ pos = error "type error in newCue unimplemented"
 
-seqIx :: Seq (Value sysval) -> Int -> Maybe (Value sysval)
-seqIx xs i | 0 <= i && i < Seq.length xs = Just $ Seq.index xs i
-           | (-(Seq.length xs)) <= i && i < 0 = Just $ Seq.index xs (Seq.length xs + i)
-           | otherwise = Nothing
+applyPrim Handle [CueVal cue meta, handler] _ =
+    --TODO I'd like to check that the handler is actually callable
+    error "Handle primitive unimplemented" --probably should return a PrimOp of 1 arg
+    --reduce (PrimOp PushCue cue handler, pos)
+applyPrim Handle _ pos = error "type error in newCue unimplemented"
 
-seqUpdate :: Seq (Value sysval) -> Int -> Value sysval -> Maybe (Seq (Value sysval))
-seqUpdate xs i v' | 0 <= i && i < Seq.length xs = Just $ Seq.update i v' xs
-                  | (-(Seq.length xs)) <= i && i < 0 = Just $ Seq.update (Seq.length xs + i) v' xs
-                  | otherwise = Nothing
+applyPrim Add [NumVal a, NumVal b] _ =
+    reduce $ NumVal (a+b)
+applyPrim Add _ pos = error "type error in add unimplemented"
+
+applyPrim NewEnv [StructVal s, UnitVal] _ = do
+    cell <- liftIO $ newIORef s
+    reduce $ EnvVal $ Env cell Nothing
+applyPrim NewEnv [StructVal s, EnvVal env] _ = do
+    cell <- liftIO $ newIORef s
+    reduce $ EnvVal $ Env cell (Just env)
+applyPrim NewEnv _ pos = error "type error in NewEnv unimplemented"
+
+
+seqExprs :: [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)
+seqExprs [] _ = reduce UnitVal
+seqExprs [e] _ = elaborate e
+seqExprs (e:rest) pos = do
+    pushCont (BlockCont rest, pos)
+    elaborate e
+
+
+
+

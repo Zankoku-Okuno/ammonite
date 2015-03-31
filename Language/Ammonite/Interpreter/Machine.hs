@@ -8,6 +8,7 @@ module Language.Ammonite.Interpreter.Machine
     , reifyEnv
     , pushCont
     , popCont
+    , newCue
     , Result(..)
     ) where
 
@@ -15,6 +16,7 @@ import Data.IORef
 import qualified Data.Map as Map
 import Control.Applicative
 import Language.Ammonite.Syntax.Abstract
+import Language.Ammonite.Interpreter.Data
 import Text.Luthor (SourcePos)
 import Control.Monad.State.Strict
 import Control.Monad.IO.Class
@@ -96,7 +98,8 @@ popCont = do
                 pure $ Just cont
             [] -> pure Nothing
 
-            
+
+newCue = undefined
 
 -- abort, capture, abort+capture, restore, run guards
 

@@ -16,7 +16,7 @@ import Control.Applicative
 type SourceFile = Text
 type SourceLine = Int
 type SourceLoc = (SourceFile, SourceLine)
-type DefMetadata = (SourceLoc, Maybe Name, Text)
+type DefMetadata = (SourceLoc, Maybe Text)
 
 type Name = Symbol --FIXME this should be a newtype w/ smart constructors/deconstructors
 type TypeTag = (Gensym, DefMetadata)
@@ -24,23 +24,7 @@ data Env sysval = Env
     { envBindings :: IORef (Map Name (Value sysval))
     , envParent :: Maybe (Env sysval)
     }
-    deriving (Eq)
-
-lookupEnv :: Name -> Env sysval -> IO (Maybe (Value sysval))
-lookupEnv x env = do
-    bindings <- readIORef $ envBindings env
-    case Map.lookup x bindings of
-        Just v -> pure $ Just v
-        Nothing -> case envParent env of
-            Nothing -> pure Nothing
-            Just parent -> lookupEnv x parent
-
-bindEnv :: Name -> Value sysval -> Env sysval -> IO ()
---FIXME I think changing an environment other than extending it could be very bad for compilation, even JIT compilation
---even extension could be bad, if it introduces shadowing
-bindEnv x v env =
-    modifyIORef (envBindings env) $ Map.insert x v
-    
+    deriving (Eq)    
 
 
 data Value sysval =
@@ -111,9 +95,10 @@ type ThunkCell sysval = IORef (Either (Value sysval) (Expr sysval, Env sysval))
 
 data Prim =
       Define | Vau | Lambda | Eval
+    | NewEnv | Lazy | Force
+    | NewCue | Handle
     | Neg | Floor | Ceil
     | Add | Sub | Mul | Div | Exp | Log
-    | NewEnv | Lazy | Force
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
     deriving (Eq, Show)
 
@@ -173,13 +158,6 @@ data ContCore sysval =
     | ThunkCont (ThunkCell sysval)
     | BindCont (Expr sysval, Env sysval) {-hole-} (Either (Value sysval) (Expr sysval))
     | MatchCont (Expr sysval, Env sysval) (Value sysval) (Either (Value sysval) (Expr sysval))
-
-
-
-isApplicative :: Value sysval -> Bool
-isApplicative f@(ClosureVal { opParameters = Left _ }) = False
-isApplicative f@(ClosureVal { opParameters = Right _ }) = True
-isApplicative (PrimAp {}) = True
-isApplicative (PrimForm {}) = False
-isApplicative (SysOp {}) = True
-isApplicative _ = True
+    -- Stack Marks
+    | Barrier (Expr sysval)
+    | CueCont Gensym (Value sysval)
