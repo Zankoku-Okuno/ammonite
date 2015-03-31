@@ -17,8 +17,8 @@ import Language.Ammonite.Interpreter.Environment
 import Language.Ammonite.Syntax.Printer
 
 
-eval :: Expr sysval -> Env sysval -> IO (Result sysval)
-eval prog env = Good <$> runMachine (elaborate prog) env
+eval :: Expr sysval -> StartState sysval -> IO (Result sysval)
+eval prog start = Good <$> runMachine (elaborate prog) start
 
 elaborate :: Expr sysval -> Machine sysval (Value sysval)
 elaborate (Lit val, _) = reduce val
@@ -150,6 +150,8 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
             elaborate arg
         | otherwise = form f arg pos
     reduce' (ApCont f, pos) v = apply f v pos
+    -- First-Class Control
+    reduce' (CueCont _ _, _) v = reduce v
     -- Other
     reduce' (BlockCont es, pos) _ = seqExprs es pos
     reduce' (ThunkCont cell, _) v = do
@@ -187,6 +189,8 @@ form (PrimForm op 1 args) next pos = do
 form (PrimForm op n args) next _ | n > 1 = do
     env <- reifyEnv
     reduce (PrimForm op (n-1) (args ++ [(next, env)]))
+form (Within op args) next pos =
+    withinForm op args next pos
 
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
@@ -209,7 +213,7 @@ apply f@(PrimAp _ _ _) (ThunkVal thunk_cell) pos = do
             pushCont (ThunkCont thunk_cell, pos)
             swapEnv env
             elaborate e
-apply (PrimAp op 0 args) next pos = do
+apply (PrimAp op 1 args) next pos = do
     applyPrim op (args ++ [next]) pos
 apply (PrimAp op n args) next pos | n > 1 =
     reduce (PrimAp op (n-1) (args ++ [next]))
@@ -242,6 +246,14 @@ primForm Vau [envBind, paramBind, (body, env)] _ = do
         , opBody = body
         }
 
+withinForm :: Prim -> [Value sysval] -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
+withinForm Handle [CueVal cue meta, handler] body pos = do
+    --TODO I'd like to check that the handler is actually callable
+    pushCont (CueCont cue handler, pos)
+    elaborate body
+
+    
+
 
 applyPrim :: Prim -> [Value sysval] -> SourceLoc -> Machine sysval (Value sysval) 
 
@@ -258,10 +270,8 @@ applyPrim NewCue [StrVal desc] pos = do
     reduce $ CueVal c (pos, Just desc)
 applyPrim NewCue _ pos = error "type error in newCue unimplemented"
 
-applyPrim Handle [CueVal cue meta, handler] _ =
-    --TODO I'd like to check that the handler is actually callable
-    error "Handle primitive unimplemented" --probably should return a PrimOp of 1 arg
-    --reduce (PrimOp PushCue cue handler, pos)
+applyPrim Handle [cue, handler] _ =
+    reduce $ Within Handle [cue, handler]
 applyPrim Handle _ pos = error "type error in newCue unimplemented"
 
 applyPrim Add [NumVal a, NumVal b] _ =

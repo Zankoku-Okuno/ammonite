@@ -59,6 +59,7 @@ data Value sysval =
     | ModuleVal [ModuleItem sysval] DefMetadata
     -- First-class Control
     | CueVal Gensym DefMetadata
+    | Within Prim [Value sysval]
     | Subcont (Continuation sysval)
     -- First-class Environments
     | EnvVal (Env sysval)

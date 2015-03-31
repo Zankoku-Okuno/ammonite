@@ -1,6 +1,6 @@
 module Language.Ammonite.Syntax.Printer
-    ( showAST
-    , showVal
+    ( showAST --FIXME use a pretty-printer
+    , ReportValue(..)
     ) where
 
 import Data.Ratio
@@ -13,7 +13,18 @@ import qualified Data.Text as T
 import Control.Applicative
 import Language.Ammonite.Syntax.Abstract as AST
 
-showVal :: Show sysval => Value sysval -> String
+
+class ReportValue a where
+    report :: a -> String
+
+instance ReportValue () where
+    report () = "()"
+
+instance (ReportValue sysval) => ReportValue (Value sysval) where
+    report = showVal
+
+
+showVal :: ReportValue sysval => Value sysval -> String
 showVal UnitVal = "()"
 showVal TrueVal = "true"
 showVal FalseVal = "false"
@@ -43,7 +54,7 @@ showVal (PrimAp op arity args) = "<PrimAp: " ++ show op ++ intercalate "," (map 
 --showVal (SysVal _) = undefined -- TODO
 --showVal (SysOp {}) = undefined -- TODO
 
-showAST :: Show sysval => Expr sysval -> String
+showAST :: ReportValue sysval => Expr sysval -> String
 showAST (Lit x, _) = showVal x
 showAST (Name x, _) = unintern x
 showAST (StrExpr txt rest, _) = dquote $ showStr txt ++ concatMap showPair rest
@@ -80,7 +91,7 @@ showAST (UnquotedExpr e, _) = (',':) $ showAST e
 showAST (Ap xs, _) = parens . spaces $ showAST <$> toList xs
 showAST (Block stmts, _) = parens . semicolons $ showAST <$> stmts
 
-showRoute :: Show sysval => Route sysval -> String
+showRoute :: ReportValue sysval => Route sysval -> String
 showRoute (Field x) = '.' : unintern x
 showRoute (Index e) = bracks $ showAST e
 showRoute (Slice start stop) =
@@ -103,3 +114,4 @@ dquote = ("\""++) . (++"\"")
 semicolons = intercalate "; "
 commas = intercalate ", "
 spaces = intercalate " "
+

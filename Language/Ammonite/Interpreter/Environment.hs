@@ -61,7 +61,7 @@ stdBindings = map (\(x, v) -> (intern x, v))
     , ("_+_", PrimAp Add 2 [])
 
     , ("newEnv", PrimAp NewEnv 2 [])
-    , ("handle", PrimAp Handler 2 [])
+    , ("handle", PrimAp Handle 2 [])
 
     , ("true", TrueVal)
     , ("false", FalseVal)

@@ -22,10 +22,11 @@ import Language.Ammonite.Syntax.Abstract
 
 
 isApplicative :: Value sysval -> Bool
-isApplicative f@(ClosureVal { opParameters = Left _ }) = False
-isApplicative f@(ClosureVal { opParameters = Right _ }) = True
+isApplicative (ClosureVal { opParameters = Left _ }) = False
+isApplicative (ClosureVal { opParameters = Right _ }) = True
 isApplicative (PrimAp {}) = True
 isApplicative (PrimForm {}) = False
+isApplicative (Within _ _) = False
 isApplicative (SysOp {}) = True
 isApplicative _ = True
 

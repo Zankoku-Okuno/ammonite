@@ -1,6 +1,7 @@
 {-#LANGUAGE GeneralizedNewtypeDeriving #-}
 module Language.Ammonite.Interpreter.Machine
     ( Machine
+    , StartState
     , runMachine
     , lookupCurrentEnv
     , bindCurrentEnv
@@ -15,6 +16,7 @@ module Language.Ammonite.Interpreter.Machine
 import Data.IORef
 import qualified Data.Map as Map
 import Control.Applicative
+import Language.Ammonite.Gensym
 import Language.Ammonite.Syntax.Abstract
 import Language.Ammonite.Interpreter.Data
 import Text.Luthor (SourcePos)
@@ -30,11 +32,15 @@ data Result sysval =
       Good (Value sysval)
     | Stuck --TODO what needs to be reported?
 
+
+type StartState sysval = (Env sysval, GensymSource)
+
 data MachineState sysval = S
     { msEnv :: Env sysval -- ^ the current environment
     , msControl :: Continuation sysval -- ^ the current continuation up to most recent environment swap or stack mark
     , msStack :: Stack sysval -- ^ the continuation for the whole thread
-    --TODO any thread-local state, such as symbol generators and actual TLS
+    , msGensym :: GensymSource
+    --TODO any thread-local state, such as actual TLS
     --TODO a channel to send commands to the MultiMachine (which coordinates thread lifetimes)
     }
 
@@ -46,14 +52,15 @@ data Frame sysval =
 
 -- visible API --
 
-runMachine :: Machine sysval a -> Env sysval -> IO a
-runMachine action env = evalStateT (unMachine action) (startState env)
+runMachine :: Machine sysval a -> StartState sysval -> IO a
+runMachine action enter_state = evalStateT (unMachine action) (startState enter_state)
 
-startState :: Env sysval -> MachineState sysval
-startState env = S
+startState :: StartState sysval -> MachineState sysval
+startState (env, source) = S
     { msEnv = env
     , msControl = emptyCont
     , msStack = emptyStack
+    , msGensym = source
     }
 
 lookupCurrentEnv :: Name -> Machine sysval (Maybe (Value sysval))
@@ -99,7 +106,8 @@ popCont = do
             [] -> pure Nothing
 
 
-newCue = undefined
+newCue :: Machine sysval Gensym
+newCue = gensym
 
 -- abort, capture, abort+capture, restore, run guards
 
@@ -140,6 +148,12 @@ restoreEnv = Machine $ do
         (EnvFrame ((k, e): top) : rest) ->
             modify $ \s -> s { msStack = EnvFrame top : rest, msControl = k, msEnv = e }
         _ -> error "internal error: Language.Ammonite.Interpreter.Machine.restoreEnv called when EnvFrame not on top of stack"
+
+gensym :: Machine sysval Gensym
+gensym = Machine $ do
+    (next, source) <- gets $ step . msGensym
+    modify $ \s -> s { msGensym = source }
+    pure next
 
 -- Helpers --
 
