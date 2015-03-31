@@ -3,6 +3,7 @@ module Language.Ammonite.Interpreter.Environment
     , stdEnv
     , startEnv
     , childEnv
+    , copyEnv
     ) where
 
 import Data.Symbol
@@ -34,11 +35,18 @@ startEnv = do
     empty <- emptyEnv
     return $ empty { envParent = Just std }
 
-childEnv :: Env (sysval) -> IO (Env sysval)
+childEnv :: Env sysval -> IO (Env sysval)
 childEnv parent = do
     empty <- emptyEnv
     return $ empty { envParent = Just parent }
 
+copyEnv :: Env sysval -> IO (Env sysval)
+copyEnv env = do
+    cell <- newIORef =<< readIORef (envBindings env)
+    return Env
+        { envBindings = cell
+        , envParent = envParent env
+        }
 
 stdBindings :: [(Name, Value sysval)]
 stdBindings = map (\(x, v) -> (intern x, v))

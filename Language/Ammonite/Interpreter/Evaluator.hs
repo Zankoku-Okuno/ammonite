@@ -209,12 +209,14 @@ form (PrimForm Vau 1 [envBind, paramBind]) body pos = do
 
 apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
 apply f@(ClosureVal { opParameters = Right [p] }) v pos = do
-    swapEnv (opEnv f)
+    env <- liftIO $ copyEnv (opEnv f)
+    swapEnv env
     pushCont (BindCont p (Right $ opBody f), pos)
     reduce v
 apply f@(ClosureVal { opParameters = Right (p:ps) }) v pos = do
-    swapEnv (opEnv f)
-    pushCont (BindCont p (Left $ f { opParameters = Right ps }), pos)
+    env <- liftIO $ copyEnv (opEnv f)
+    swapEnv env
+    pushCont (BindCont p (Left $ f { opEnv = env, opParameters = Right ps }), pos)
     reduce v
 apply f@(PrimAp _ _ _) (ThunkVal thunk_cell) pos = do
     thunk <- liftIO $ readIORef thunk_cell
