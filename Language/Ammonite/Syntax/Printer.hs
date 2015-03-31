@@ -1,6 +1,7 @@
 module Language.Ammonite.Syntax.Printer
     ( showAST --FIXME use a pretty-printer
     , ReportValue(..)
+    , stackTrace
     ) where
 
 import Data.Ratio
@@ -101,6 +102,19 @@ showRoute (Slice start stop) =
 
 --FIXME do proper indentation
 --FIXME elimiate redundant parens: Ap as element of ListExpr, StructExpr, RecordExpr, Block, interpoaltion into a string
+--FIXME add required parens, such as `({x: 1}.x:=3).x`
+
+
+stackTrace :: ReportValue sysval => Continuation sysval -> String
+stackTrace = intercalate "\n" . reverse . map goFrame
+    where
+    goFrame (EnvFrame sections) = intercalate "\n" . reverse $ map (goEnv . fst) sections
+    goFrame (Mark cont) = goPos cont
+    goEnv = intercalate "\n" . reverse . map goPos
+    goPos (core, (file, line)) = "At line " ++ show line ++ " in " ++ show file ++ ":\n    " ++ go core
+    go (CueCont cue handler) = "cue mark"
+    go _ = "something!" --TODO
+
 
 
 showStr str = T.unpack str --FIXME escape characters that can't appear in a string literal

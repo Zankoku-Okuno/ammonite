@@ -11,6 +11,7 @@ module Language.Ammonite.Interpreter.Machine
     , popCont
     , newCue
     , Result(..)
+    , delme_getStack
     ) where
 
 import Data.IORef
@@ -22,6 +23,13 @@ import Language.Ammonite.Interpreter.Data
 import Text.Luthor (SourcePos)
 import Control.Monad.State.Strict
 import Control.Monad.IO.Class
+
+delme_getStack :: Machine sysval (Continuation sysval)
+delme_getStack = Machine $ do
+    little <- gets msControl
+    big <- gets msStack
+    env <- gets msEnv
+    pure $ EnvFrame [(little, env)] : big
 
 
 --FIXME I need an EitherT ErrorReport
@@ -37,17 +45,12 @@ type StartState sysval = (Env sysval, GensymSource)
 
 data MachineState sysval = S
     { msEnv :: Env sysval -- ^ the current environment
-    , msControl :: Continuation sysval -- ^ the current continuation up to most recent environment swap or stack mark
-    , msStack :: Stack sysval -- ^ the continuation for the whole thread
+    , msControl :: [Cont sysval] -- ^ the current continuation up to most recent environment swap or stack mark
+    , msStack :: Continuation sysval -- ^ the continuation for the whole thread
     , msGensym :: GensymSource
     --TODO any thread-local state, such as actual TLS
     --TODO a channel to send commands to the MultiMachine (which coordinates thread lifetimes)
     }
-
-type Stack sysval = [Frame sysval]
-data Frame sysval = 
-      EnvFrame [(Continuation sysval, Env sysval)]
-    | Mark (Cont sysval)
 
 
 -- visible API --
@@ -114,10 +117,10 @@ newCue = gensym
 
 -- low-level (internal) API --
 
-emptyCont :: Continuation sysval
+emptyCont :: [Cont sysval]
 emptyCont = []
 
-emptyStack :: Stack sysval
+emptyStack :: Continuation sysval
 emptyStack = []
 
 saveEnv :: Machine sysval ()

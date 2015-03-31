@@ -131,7 +131,12 @@ data Route sysval =
 
 type Pattern sysval = (Expr sysval, Env sysval)
 
-type Continuation sysval = [Cont sysval]
+
+type Continuation sysval = [Frame sysval]
+data Frame sysval = 
+      EnvFrame [([Cont sysval], Env sysval)]
+    | Mark (Cont sysval)
+
 type Cont sysval = (ContCore sysval, SourceLoc)
     -- TODO report function and module (contFunc, contMod)
 data ContCore sysval =

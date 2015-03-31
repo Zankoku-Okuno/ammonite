@@ -17,15 +17,17 @@ import Language.Ammonite.Interpreter.Environment
 import Language.Ammonite.Syntax.Printer
 
 
-eval :: Expr sysval -> StartState sysval -> IO (Result sysval)
+eval :: (ReportValue sysval) => Expr sysval -> StartState sysval -> IO (Result sysval)
 eval prog start = Good <$> runMachine (elaborate prog) start
 
-elaborate :: Expr sysval -> Machine sysval (Value sysval)
+elaborate :: (ReportValue sysval) => Expr sysval -> Machine sysval (Value sysval)
 elaborate (Lit val, _) = reduce val
 elaborate (Name x, _) = do
     m_val <- lookupCurrentEnv x
     case m_val of
-        Nothing -> error $ "unimplemented: scope error (" ++ show x ++ ")"
+        Nothing -> do
+            stack <- delme_getStack
+            error $ stackTrace stack ++ "\nunimplemented: scope error (" ++ show x ++ ")"
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
 elaborate (ListExpr (e:es), pos) = do
@@ -58,11 +60,11 @@ elaborate (Block es, pos) = seqExprs es pos
 elaborate _ = error $ "elaborate unimplemented"
 
 
-reduce :: Value sysval -> Machine sysval (Value sysval)
+reduce :: (ReportValue sysval) => Value sysval -> Machine sysval (Value sysval)
 reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     where
     -- Compound Data Contruction
-    reduce' :: Cont sysval -> Value sysval -> Machine sysval (Value sysval)
+    reduce' :: (ReportValue sysval) => Cont sysval -> Value sysval -> Machine sysval (Value sysval)
     reduce' (ListCont vs [], pos) v = reduce $ ListVal (vs |> v)
     reduce' (ListCont vs (e:es), pos) v = do
         pushCont (ListCont (vs |> v) es, pos)
@@ -170,7 +172,7 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' k v = error "reduce unimplemented"
 
 
-form :: Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
+form :: (ReportValue sysval) => Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
 form f@(ClosureVal { opParameters = Left [(env_p, p)] }) e pos = do
     env <- reifyEnv
     swapEnv (opEnv f)
@@ -193,7 +195,7 @@ form (Within op args) next pos =
     withinForm op args next pos
 
 
-apply :: Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
+apply :: (ReportValue sysval) => Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
 apply f@(ClosureVal { opParameters = Right [p] }) v pos = do
     env <- liftIO $ copyEnv (opEnv f)
     swapEnv env
@@ -219,13 +221,13 @@ apply (PrimAp op n args) next pos | n > 1 =
     reduce (PrimAp op (n-1) (args ++ [next]))
 
 
-match :: Pattern sysval -> Value sysval -> Machine sysval ()
+match :: (ReportValue sysval) => Pattern sysval -> Value sysval -> Machine sysval ()
 match ((Name x, _), _) v = bindCurrentEnv x v
 match (dector, env) v = error "unimplemented: match"
 
 
 
-primForm :: Prim -> [(Expr sysval, Env sysval)] -> SourceLoc -> Machine sysval (Value sysval)
+primForm :: (ReportValue sysval) => Prim -> [(Expr sysval, Env sysval)] -> SourceLoc -> Machine sysval (Value sysval)
 primForm Define [p, (e, _)] pos = do
     pushCont (BindCont p (Left UnitVal), pos)
     elaborate e
@@ -246,7 +248,7 @@ primForm Vau [envBind, paramBind, (body, env)] _ = do
         , opBody = body
         }
 
-withinForm :: Prim -> [Value sysval] -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
+withinForm :: (ReportValue sysval) => Prim -> [Value sysval] -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
 withinForm Handle [CueVal cue meta, handler] body pos = do
     --TODO I'd like to check that the handler is actually callable
     pushCont (CueCont cue handler, pos)
@@ -255,7 +257,7 @@ withinForm Handle [CueVal cue meta, handler] body pos = do
     
 
 
-applyPrim :: Prim -> [Value sysval] -> SourceLoc -> Machine sysval (Value sysval) 
+applyPrim :: (ReportValue sysval) => Prim -> [Value sysval] -> SourceLoc -> Machine sysval (Value sysval) 
 
 applyPrim Eval [ExprVal body, EnvVal env] _ = do
     swapEnv env
@@ -287,7 +289,7 @@ applyPrim NewEnv [StructVal s, EnvVal env] _ = do
 applyPrim NewEnv _ pos = error "type error in NewEnv unimplemented"
 
 
-seqExprs :: [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)
+seqExprs :: (ReportValue sysval) => [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)
 seqExprs [] _ = reduce UnitVal
 seqExprs [e] _ = elaborate e
 seqExprs (e:rest) pos = do
