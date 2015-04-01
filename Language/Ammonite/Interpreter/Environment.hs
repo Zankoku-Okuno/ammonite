@@ -1,3 +1,4 @@
+{-#LANGUAGE OverloadedStrings #-}
 module Language.Ammonite.Interpreter.Environment
     ( emptyEnv
     , stdEnv
@@ -11,27 +12,28 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.IORef
 import Language.Ammonite.Syntax.Abstract
+import Language.Ammonite.Interpreter.RTS
 
 
 emptyEnv :: IO (Env sysval)
 emptyEnv = do
-    it <- newIORef $ Map.fromList stdBindings
+    it <- newIORef $ Map.empty
     return Env
         { envBindings = it
         , envParent = Nothing
         }
 
-stdEnv :: IO (Env sysval)
-stdEnv = do
-    it <- newIORef $ Map.fromList stdBindings
+stdEnv :: RTS sysval -> IO (Env sysval)
+stdEnv rts = do
+    it <- newIORef $ Map.fromList $ stdBindings rts
     return Env
         { envBindings = it
         , envParent = Nothing
         }
 
-startEnv :: IO (Env sysval)
-startEnv = do
-    std <- stdEnv
+startEnv :: RTS sysval -> IO (Env sysval)
+startEnv rts = do
+    std <- stdEnv rts
     empty <- emptyEnv
     return $ empty { envParent = Just std }
 
@@ -48,8 +50,8 @@ copyEnv env = do
         , envParent = envParent env
         }
 
-stdBindings :: [(Name, Value sysval)]
-stdBindings = map (\(x, v) -> (intern x, v))
+stdBindings :: RTS sysval -> [(Name, Value sysval)]
+stdBindings rts = map (\(x, v) -> (intern x, v))
     [ ("_is_", PrimForm Define 2 [])
     , ("λ", PrimForm Lambda 2 [])
     , ("lambda", PrimForm Lambda 2 [])
@@ -65,4 +67,5 @@ stdBindings = map (\(x, v) -> (intern x, v))
 
     , ("true", TrueVal)
     , ("false", FalseVal)
+    , ("exn", rtsExnCue rts)
     ]

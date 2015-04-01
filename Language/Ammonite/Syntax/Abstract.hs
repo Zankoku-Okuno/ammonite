@@ -16,7 +16,7 @@ import Control.Applicative
 type SourceFile = Text
 type SourceLine = Int
 type SourceLoc = (SourceFile, SourceLine)
-type DefMetadata = (SourceLoc, Maybe Text)
+type DefMetadata = (Maybe SourceLoc, Maybe Text)
 
 type Name = Symbol --FIXME this should be a newtype w/ smart constructors/deconstructors
 type TypeTag = (Gensym, DefMetadata)

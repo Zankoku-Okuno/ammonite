@@ -4,6 +4,7 @@ module Language.Ammonite.Interpreter.Machine
     , StartState
     , runMachine
     , Result(..)
+    , rts
     , lookupCurrentEnv
     , bindCurrentEnv
     , swapEnv
@@ -23,6 +24,7 @@ import Control.Applicative
 import Language.Ammonite.Gensym
 import Language.Ammonite.Syntax.Abstract
 import Language.Ammonite.Interpreter.Data
+import Language.Ammonite.Interpreter.RTS
 import Text.Luthor (SourcePos)
 import Control.Monad.State.Strict
 import Control.Monad.IO.Class
@@ -38,13 +40,14 @@ data Result sysval =
     | Stuck --TODO what needs to be reported?
 
 
-type StartState sysval = (Env sysval, GensymSource)
+type StartState sysval = (RTS sysval, Env sysval, GensymSource)
 
 data MachineState sysval = S
     { msEnv :: Env sysval -- ^ the current environment
     , msControl :: [Cont sysval] -- ^ the current continuation up to most recent environment swap or stack mark
     , msStack :: Continuation sysval -- ^ the continuation for the whole thread
     , msGensym :: GensymSource
+    , msRTS :: RTS sysval
     --TODO any thread-local state, such as actual TLS
     --TODO a channel to send commands to the MultiMachine (which coordinates thread lifetimes)
     }
@@ -56,12 +59,16 @@ runMachine :: Machine sysval a -> StartState sysval -> IO a
 runMachine action enter_state = evalStateT (unMachine action) (startState enter_state)
 
 startState :: StartState sysval -> MachineState sysval
-startState (env, source) = S
+startState (rts, env, source) = S
     { msEnv = env
     , msControl = emptyCont
     , msStack = emptyStack
     , msGensym = source
+    , msRTS = rts
     }
+
+rts :: (RTS sysval -> a) -> Machine sysval a
+rts field = Machine $ gets $ field . msRTS
 
 lookupCurrentEnv :: Name -> Machine sysval (Maybe (Value sysval))
 lookupCurrentEnv x = Machine $ do

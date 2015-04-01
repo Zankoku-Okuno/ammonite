@@ -267,10 +267,10 @@ applyPrim Eval _ _ = error "unimplemented: type error in elaborate"
 
 applyPrim NewCue [UnitVal] pos = do
     c <- newCue
-    reduce $ CueVal c (pos, Nothing)
+    reduce $ CueVal c (Just pos, Nothing)
 applyPrim NewCue [StrVal desc] pos = do
     c <- newCue
-    reduce $ CueVal c (pos, Just desc)
+    reduce $ CueVal c (Just pos, Just desc)
 applyPrim NewCue _ pos = error "type error in newCue unimplemented"
 
 applyPrim Handle [cue, handler] _ =

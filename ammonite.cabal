@@ -36,6 +36,7 @@ library
                        Language.Ammonite.Syntax.Sugar,
                        Language.Ammonite.Syntax.Printer,
                        Language.Ammonite.Interpreter.Data,
+                       Language.Ammonite.Interpreter.RTS,
                        Language.Ammonite.Interpreter.Machine,
                        Language.Ammonite.Interpreter.Evaluator,
                        Language.Ammonite.Interpreter.Environment,
