@@ -35,6 +35,12 @@ Feature freeze is in effect.
 
 Although, I am considering syntax for `e :: e` and finding a specialized syntax for modules.
 And I feel like I could really use a VoidExpr, which could be used for match any w/o binding. 
+Also, struct slices could make visibility control very easy:
+
+```
+{x: 1, y: 2, z: 3}[x, y]
+  	---> {x: 1, y: 2}
+```
 
 
 Desugaring
@@ -66,11 +72,11 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 		[*] push/pop continuations
 		[*] environment swap
 		[ ] Result type (good | fatal error)
-		[ ] abort
-		[ ] stack marks
-		[ ] capture, capture+abort
+		[*] stack marks
+		[*] split stack
+		[ ] gather stack guards
 		[ ] thread-local data store
-		[ ] redo gensyms to use UUID
+		[ ] ?redo gensyms to use UUID
 	[ ] MultiMachine
 	[ ] Evaluator
 		[*] self-evaluating terms
@@ -112,3 +118,6 @@ When lambdas bind multiple args at once, it is a seq, not an ap. Ap is for decon
 
 You know, it might be nice to allow abstract types to be callable and accessible/updatable.
 Not the structural types, though.
+
+You know, I could have closures that are mixed operative/applicative just by flipping the [] and Either constructors.
+Mixed for primitives is a little harder, but not that difficult.

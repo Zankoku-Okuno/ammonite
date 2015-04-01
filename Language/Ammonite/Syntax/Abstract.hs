@@ -70,7 +70,7 @@ data Value sysval =
     | PrimForm
         { primformOp :: Prim
         , primformArity :: Int
-        , primformArgs :: [(Expr sysval, Env sysval)]
+        , primformArgs :: [Suspension sysval]
         }
     | PrimAp
         { primOp :: Prim
@@ -92,7 +92,8 @@ data Value sysval =
 data ModuleItem sysval = Data Name (Value sysval)
                        | Docstr Text
 
-type ThunkCell sysval = IORef (Either (Value sysval) (Expr sysval, Env sysval))
+type ThunkCell sysval = IORef (Either (Value sysval) (Suspension sysval))
+type Suspension sysval = (Expr sysval, Env sysval)
 
 data Prim =
       Define | Vau | Lambda | Eval
@@ -102,6 +103,7 @@ data Prim =
     | Add | Sub | Mul | Div | Exp | Log
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
     deriving (Eq, Show)
+
 
 type Expr sysval = (ExprCore sysval, SourceLoc)
 data ExprCore sysval =
@@ -162,8 +164,8 @@ data ContCore sysval =
     | BlockCont {-hole-} [Expr sysval]
     -- other
     | ThunkCont (ThunkCell sysval)
-    | BindCont (Expr sysval, Env sysval) {-hole-} (Either (Value sysval) (Expr sysval))
-    | MatchCont (Expr sysval, Env sysval) (Value sysval) (Either (Value sysval) (Expr sysval))
+    | BindCont (Pattern sysval) {-hole-} (Either (Value sysval) (Expr sysval))
+    | MatchCont (Pattern sysval) (Value sysval) (Either (Value sysval) (Expr sysval))
     -- Stack Marks
-    | Barrier (Expr sysval)
+    | Barrier (Suspension sysval)
     | CueCont Gensym (Value sysval)

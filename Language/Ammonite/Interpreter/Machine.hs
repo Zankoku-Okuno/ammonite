@@ -3,15 +3,18 @@ module Language.Ammonite.Interpreter.Machine
     ( Machine
     , StartState
     , runMachine
+    , Result(..)
     , lookupCurrentEnv
     , bindCurrentEnv
     , swapEnv
     , reifyEnv
     , pushCont
     , popCont
+    , getStack
+    , SplitStack
     , newCue
-    , Result(..)
-    , delme_getStack
+    , abort
+    , capture
     ) where
 
 import Data.IORef
@@ -24,12 +27,6 @@ import Text.Luthor (SourcePos)
 import Control.Monad.State.Strict
 import Control.Monad.IO.Class
 
-delme_getStack :: Machine sysval (Continuation sysval)
-delme_getStack = Machine $ do
-    little <- gets msControl
-    big <- gets msStack
-    env <- gets msEnv
-    pure $ EnvFrame [(little, env)] : big
 
 
 --FIXME I need an EitherT ErrorReport
@@ -83,6 +80,13 @@ swapEnv env' = do
 reifyEnv :: Machine sysval (Env sysval)
 reifyEnv = Machine $ gets msEnv
 
+getStack :: Machine sysval (Continuation sysval)
+getStack = Machine $ do
+    k <- gets msControl
+    stack <- gets msStack
+    e <- gets msEnv
+    pure $ recombineStack (k, e) stack
+
 pushCont :: Cont sysval -> Machine sysval ()
 pushCont cont
     | isStackMark cont = do
@@ -109,10 +113,24 @@ popCont = do
             [] -> pure Nothing
 
 
+type SplitStack sysval = Maybe (Continuation sysval, Cont sysval, Continuation sysval)
+
 newCue :: Machine sysval Gensym
 newCue = gensym
 
--- abort, capture, abort+capture, restore, run guards
+abort :: Gensym -> Machine sysval (SplitStack sysval)
+abort cue = do
+    split <- capture cue
+    case split of
+        Nothing -> pure Nothing
+        it@(Just (_, _, below)) -> do
+            Machine $ modify $ \s -> s { msStack = below, msControl = emptyCont }
+            pure it
+
+capture :: Gensym -> Machine sysval (SplitStack sysval)
+capture cue = splitStack cue <$> getStack
+
+-- restore, run guards
 
 
 -- low-level (internal) API --
@@ -124,23 +142,9 @@ emptyStack :: Continuation sysval
 emptyStack = []
 
 saveEnv :: Machine sysval ()
-saveEnv = Machine $ do
-    stack <- gets msStack
-    k <- gets msControl
-    e <- gets msEnv
-    when (not $ null k) $ do
-        let stack' = case stack of {
-            -- when we save the same env repeatedly, run in constant space
-            (EnvFrame ((k0, e0):top) : rest) | e == e0 ->
-                EnvFrame ((k++k0, e0):top) : rest;
-            -- when we aren't introducing non-local control flow, just update the current frame
-            (EnvFrame top : rest) ->
-                EnvFrame ((k, e) : top) : rest;
-            -- when non-local control flow is involved, we need to create a new frame
-            rest ->
-                EnvFrame [(k, e)] : rest;
-        }
-        modify $ \s -> s { msStack = stack', msControl = emptyCont }
+saveEnv = do
+    stack' <- getStack
+    Machine $ modify $ \s -> s { msStack = stack', msControl = emptyCont }
 
 restoreEnv :: Machine sysval ()
 restoreEnv = Machine $ do
@@ -158,10 +162,34 @@ gensym = Machine $ do
     modify $ \s -> s { msGensym = source }
     pure next
 
+
+
 -- Helpers --
 
 isStackMark :: Cont sysval -> Bool
+isStackMark (Barrier _, _) = True
+isStackMark (CueCont _ _, _) = True
 --TODO once I add marks, I need to put True in here
 isStackMark _ = False
 
--- split stack, cat stack, gather control guards
+recombineStack :: ([Cont sysval], Env sysval) -> Continuation sysval -> Continuation sysval
+-- for sake of space, don't bother pushing empty continuations
+recombineStack ([], _) stack = stack
+-- when we save the same env repeatedly, run in constant space
+recombineStack (k, e) (EnvFrame ((k0, e0):top) : rest) | e == e0 =
+    EnvFrame ((k++k0, e0):top) : rest
+-- when we aren't introducing non-local control flow, just update the current frame
+recombineStack frame (EnvFrame top : rest) =
+    EnvFrame (frame : top) : rest
+-- when non-local control flow is involved, we need to create a new frame
+recombineStack frame rest = EnvFrame [frame] : rest;
+
+splitStack :: Gensym -> Continuation sysval -> SplitStack sysval
+splitStack cue = go []
+    where
+    go above (Mark m@(CueCont mark _, _) : below) | cue == mark = Just (above, m, below)
+    go above (Mark m@(Barrier thunk, _) : below) = Just (above, m, below)
+    go above (next : below) = go (above ++ [next]) below
+    go _ [] = Nothing
+
+-- cat stack, gather control guards

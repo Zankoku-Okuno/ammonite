@@ -26,7 +26,7 @@ elaborate (Name x, _) = do
     m_val <- lookupCurrentEnv x
     case m_val of
         Nothing -> do
-            stack <- delme_getStack
+            stack <- getStack
             error $ stackTrace stack ++ "\nunimplemented: scope error (" ++ show x ++ ")"
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
@@ -150,7 +150,7 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
         | isApplicative f = do
             pushCont (ApCont f, pos)
             elaborate arg
-        | otherwise = form f arg pos
+        | otherwise = opply f arg pos
     reduce' (ApCont f, pos) v = apply f v pos
     -- First-Class Control
     reduce' (CueCont _ _, _) v = reduce v
@@ -172,26 +172,27 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' k v = error "reduce unimplemented"
 
 
-form :: (ReportValue sysval) => Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
-form f@(ClosureVal { opParameters = Left [(env_p, p)] }) e pos = do
+-- "opply" is like "apply", but for operatives
+opply :: (ReportValue sysval) => Value sysval -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
+opply f@(ClosureVal { opParameters = Left [(env_p, p)] }) e pos = do
     env <- reifyEnv
     swapEnv (opEnv f)
     pushCont (MatchCont p (ExprVal e) (Right $ opBody f), pos)
     pushCont (BindCont env_p (Left UnitVal), pos)
     reduce $ EnvVal env
-form f@(ClosureVal { opParameters = Left ((env_p, p):rest) }) e pos = do
+opply f@(ClosureVal { opParameters = Left ((env_p, p):rest) }) e pos = do
     env <- reifyEnv
     swapEnv (opEnv f)
     pushCont (MatchCont p (ExprVal e) (Left $ f { opParameters = Left rest }), pos)
     pushCont (BindCont env_p (Left UnitVal), pos)
     reduce $ EnvVal env
-form (PrimForm op 1 args) next pos = do
+opply (PrimForm op 1 args) next pos = do
     env <- reifyEnv
-    primForm op (args ++ [(next, env)]) pos
-form (PrimForm op n args) next _ | n > 1 = do
+    opplyPrim op (args ++ [(next, env)]) pos
+opply (PrimForm op n args) next _ | n > 1 = do
     env <- reifyEnv
     reduce (PrimForm op (n-1) (args ++ [(next, env)]))
-form (Within op args) next pos =
+opply (Within op args) next pos =
     withinForm op args next pos
 
 
@@ -227,11 +228,11 @@ match (dector, env) v = error "unimplemented: match"
 
 
 
-primForm :: (ReportValue sysval) => Prim -> [(Expr sysval, Env sysval)] -> SourceLoc -> Machine sysval (Value sysval)
-primForm Define [p, (e, _)] pos = do
+opplyPrim :: (ReportValue sysval) => Prim -> [(Expr sysval, Env sysval)] -> SourceLoc -> Machine sysval (Value sysval)
+opplyPrim Define [p, (e, _)] pos = do
     pushCont (BindCont p (Left UnitVal), pos)
     elaborate e
-primForm Lambda [bind, (body, env)] _ = do
+opplyPrim Lambda [bind, (body, env)] _ = do
     let ps = case bind of
                 ((Block ps, _), pat_env) -> flip (,) pat_env <$> ps
                 p -> [p]
@@ -240,7 +241,7 @@ primForm Lambda [bind, (body, env)] _ = do
         , opEnv = env
         , opBody = body
         }
-primForm Vau [envBind, paramBind, (body, env)] _ = do
+opplyPrim Vau [envBind, paramBind, (body, env)] _ = do
     let ps = [(envBind, paramBind)]
     reduce ClosureVal
         { opParameters = Left ps
