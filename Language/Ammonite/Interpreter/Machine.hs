@@ -120,19 +120,16 @@ popCont = do
             [] -> pure Nothing
 
 
-type SplitStack sysval = Maybe (Continuation sysval, Cont sysval, Continuation sysval)
+type SplitStack sysval = (Continuation sysval, Maybe (Cont sysval), Continuation sysval)
 
 newCue :: Machine sysval Gensym
 newCue = gensym
 
 abort :: Gensym -> Machine sysval (SplitStack sysval)
 abort cue = do
-    split <- capture cue
-    case split of
-        Nothing -> pure Nothing
-        it@(Just (_, _, below)) -> do
-            Machine $ modify $ \s -> s { msStack = below, msControl = emptyCont }
-            pure it
+    it@(_, _, below) <- capture cue
+    Machine $ modify $ \s -> s { msStack = below, msControl = emptyCont }
+    pure it
 
 capture :: Gensym -> Machine sysval (SplitStack sysval)
 capture cue = splitStack cue <$> getStack
@@ -174,7 +171,7 @@ gensym = Machine $ do
 -- Helpers --
 
 isStackMark :: Cont sysval -> Bool
-isStackMark (Barrier _, _) = True
+isStackMark (Barrier, _) = True
 isStackMark (CueCont _ _, _) = True
 --TODO once I add marks, I need to put True in here
 isStackMark _ = False
@@ -194,9 +191,9 @@ recombineStack frame rest = EnvFrame [frame] : rest;
 splitStack :: Gensym -> Continuation sysval -> SplitStack sysval
 splitStack cue = go []
     where
-    go above (Mark m@(CueCont mark _, _) : below) | cue == mark = Just (above, m, below)
-    go above (Mark m@(Barrier thunk, _) : below) = Just (above, m, below)
+    go above (Mark m@(CueCont mark _, _) : below) | cue == mark = (above, Just m, below)
+    go above (Mark m@(Barrier, _) : below) = (above, Just m, below)
     go above (next : below) = go (above ++ [next]) below
-    go _ [] = Nothing
+    go all [] = (all, Nothing, [])
 
 -- cat stack, gather control guards

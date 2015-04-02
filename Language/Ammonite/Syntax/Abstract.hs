@@ -167,5 +167,5 @@ data ContCore sysval =
     | BindCont (Pattern sysval) {-hole-} (Either (Value sysval) (Expr sysval))
     | MatchCont (Pattern sysval) (Value sysval) (Either (Value sysval) (Expr sysval))
     -- Stack Marks
-    | Barrier (Suspension sysval)
+    | Barrier
     | CueCont Gensym (Value sysval)

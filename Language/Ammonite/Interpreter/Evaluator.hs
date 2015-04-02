@@ -1,4 +1,4 @@
-{-#LANGUAGE ViewPatterns #-}
+{-#LANGUAGE OverloadedStrings, ViewPatterns #-}
 module Language.Ammonite.Interpreter.Evaluator (eval) where
 
 import Data.IORef
@@ -6,11 +6,14 @@ import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
 
+import Data.Monoid
 import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class
 
+import Language.Ammonite.Gensym
 import Language.Ammonite.Syntax.Abstract
+import Language.Ammonite.Interpreter.RTS
 import Language.Ammonite.Interpreter.Data
 import Language.Ammonite.Interpreter.Machine
 import Language.Ammonite.Interpreter.Environment
@@ -22,12 +25,12 @@ eval prog start = Good <$> runMachine (elaborate prog) start
 
 elaborate :: (ReportValue sysval) => Expr sysval -> Machine sysval (Value sysval)
 elaborate (Lit val, _) = reduce val
-elaborate (Name x, _) = do
+elaborate (Name x, pos) = do
     m_val <- lookupCurrentEnv x
     case m_val of
         Nothing -> do
-            stack <- getStack
-            error $ stackTrace stack ++ "\nunimplemented: scope error (" ++ show x ++ ")"
+            exn <- rts rtsExnCue
+            raise exn (StrVal "Scope Error") pos --FIXME I need a gensym for scope error, pass that as part of a tuple, and probably part of an abstype
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
 elaborate (ListExpr (e:es), pos) = do
@@ -220,6 +223,19 @@ apply (PrimAp op 1 args) next pos = do
     applyPrim op (args ++ [next]) pos
 apply (PrimAp op n args) next pos | n > 1 =
     reduce (PrimAp op (n-1) (args ++ [next]))
+
+
+raise :: (ReportValue sysval) => Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
+raise (CueVal cue meta) msg pos = do
+    (above, mark, below) <- abort cue
+    case mark of
+        Nothing -> error "unimplemented: unhandled exception"
+        Just (Barrier, pos) -> error "unimplemented: raise unhandled exception error"
+        Just (CueCont _ handler, pos) -> do
+            --FIXME find and run stack guards
+            --TODO also apply the cueval
+            --FIXME figure out what it is that I'm raising
+            apply handler msg pos
 
 
 match :: (ReportValue sysval) => Pattern sysval -> Value sysval -> Machine sysval ()
