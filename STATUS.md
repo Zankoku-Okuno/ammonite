@@ -105,6 +105,14 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[ ] deconstructors (ap)
 			[ ] expressions
 		[ ] first-class control
+			[*] abort
+			[*] handle
+			[ ] raising rts exceptions
+			[ ] push barrier
+			[ ] stack guard
+			[ ] capture
+			[ ] restore
+
 	[ ] Import
 
 

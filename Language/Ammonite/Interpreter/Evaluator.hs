@@ -29,8 +29,9 @@ elaborate (Name x, pos) = do
     m_val <- lookupCurrentEnv x
     case m_val of
         Nothing -> do
-            exn <- rts rtsExnCue
-            raise exn (StrVal "Scope Error") pos --FIXME I need a gensym for scope error, pass that as part of a tuple, and probably part of an abstype
+            tag <- rts rtsScopeExn
+            let msg = StrVal $ "not in scope: " <> "TODO some varname"
+            raise tag msg pos --FIXME I need a gensym for scope error, pass that as part of a tuple, and probably part of an abstype
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
 elaborate (ListExpr (e:es), pos) = do
@@ -226,22 +227,28 @@ apply (PrimAp op n args) next pos | n > 1 =
 
 
 raise :: (ReportValue sysval) => Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
-raise (CueVal cue meta) msg pos = do
+raise tag msg pos = do
+    c@(CueVal cue meta) <- rts rtsExnCue
     (above, mark, below) <- abort cue
     case mark of
-        Nothing -> error "unimplemented: unhandled exception"
-        Just (Barrier, pos) -> error "unimplemented: raise unhandled exception error"
+        Nothing -> error $ --TODO
+               "unimplemented: unhandled exception\n"
+            ++ stackTrace above
+        Just (Barrier, pos) -> error $ --TODO
+               "unimplemented: raise unhandled exception error"
+            ++ stackTrace below ++ "\n"
+            ++ "some barrier\n"
+            ++ stackTrace above
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
-            --TODO also apply the cueval
-            --FIXME figure out what it is that I'm raising
-            apply handler msg pos
+            new <- rts mkExnVal 
+            let exn = new tag (Subcont above) msg
+            apply handler (mkAbortVal c handler exn) pos
 
 
 match :: (ReportValue sysval) => Pattern sysval -> Value sysval -> Machine sysval ()
 match ((Name x, _), _) v = bindCurrentEnv x v
 match (dector, env) v = error "unimplemented: match"
-
 
 
 opplyPrim :: (ReportValue sysval) => Prim -> [(Expr sysval, Env sysval)] -> SourceLoc -> Machine sysval (Value sysval)
@@ -264,6 +271,7 @@ opplyPrim Vau [envBind, paramBind, (body, env)] _ = do
         , opEnv = env
         , opBody = body
         }
+
 
 withinForm :: (ReportValue sysval) => Prim -> [Value sysval] -> Expr sysval -> SourceLoc -> Machine sysval (Value sysval)
 withinForm Handle [CueVal cue meta, handler] body pos = do

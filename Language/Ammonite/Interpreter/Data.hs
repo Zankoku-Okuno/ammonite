@@ -7,10 +7,12 @@ module Language.Ammonite.Interpreter.Data
     , setField
     , getIndex
     , setIndex
+    , mkAbortVal
     ) where
 
 import Control.Applicative
 
+import Data.Symbol
 import Data.IORef
 import Data.Ratio
 import Data.Sequence (Seq, viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
@@ -87,3 +89,11 @@ seqUpdate :: Seq (Value sysval) -> Int -> Value sysval -> Maybe (Seq (Value sysv
 seqUpdate xs i v' | 0 <= i && i < Seq.length xs = Just $ Seq.update i v' xs
                   | (-(Seq.length xs)) <= i && i < 0 = Just $ Seq.update (Seq.length xs + i) v' xs
                   | otherwise = Nothing
+
+
+mkAbortVal :: Value sysval -> Value sysval -> Value sysval -> Value sysval
+mkAbortVal cue handler v = StructVal $ Map.fromList
+    [ (intern "cue", cue)
+    , (intern "handler", handler)
+    , (intern "val", v)
+    ]
