@@ -1,6 +1,7 @@
 {-#LANGUAGE OverloadedStrings, ViewPatterns #-}
 module Language.Ammonite.Interpreter.Evaluator (eval) where
 
+import qualified Data.Text as T
 import Data.IORef
 import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
 import qualified Data.Sequence as Seq
@@ -30,7 +31,7 @@ elaborate (Name x, pos) = do
     case m_val of
         Nothing -> do
             tag <- rts rtsScopeExn
-            let msg = StrVal $ "not in scope: " <> "TODO some varname"
+            let msg = StrVal $ "not in scope: " <> report x
             raise tag msg pos --FIXME I need a gensym for scope error, pass that as part of a tuple, and probably part of an abstype
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
@@ -234,11 +235,13 @@ raise tag msg pos = do
         Nothing -> error $ --TODO
                "unimplemented: unhandled exception\n"
             ++ stackTrace above
+            ++ T.unpack (report msg)
         Just (Barrier, pos) -> error $ --TODO
                "unimplemented: raise unhandled exception error"
             ++ stackTrace below ++ "\n"
             ++ "some barrier\n"
             ++ stackTrace above
+            ++ T.unpack (report msg)
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
             new <- rts mkExnVal 
