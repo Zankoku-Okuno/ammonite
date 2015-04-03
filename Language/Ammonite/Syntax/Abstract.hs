@@ -102,6 +102,7 @@ data Prim =
     | Neg | Floor | Ceil
     | Add | Sub | Mul | Div | Exp | Log
       --TODO universal runtime (exn cue, special forms, halt cue, primitives)
+    | DELME_Print
     deriving (Eq, Show)
 
 

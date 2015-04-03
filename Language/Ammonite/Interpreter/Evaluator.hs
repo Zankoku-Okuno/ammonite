@@ -2,6 +2,7 @@
 module Language.Ammonite.Interpreter.Evaluator (eval) where
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Data.IORef
 import Data.Sequence (viewl, viewr, ViewL(..), ViewR(..), (<|), (|>))
 import qualified Data.Sequence as Seq
@@ -234,13 +235,13 @@ raise tag msg pos = do
     case mark of
         Nothing -> error $ --TODO
                "unimplemented: unhandled exception\n"
-            ++ stackTrace above
+            ++ stackTrace above ++ "\n"
             ++ T.unpack (report msg)
         Just (Barrier, pos) -> error $ --TODO
                "unimplemented: raise unhandled exception error"
             ++ stackTrace below ++ "\n"
             ++ "some barrier\n"
-            ++ stackTrace above
+            ++ stackTrace above ++ "\n"
             ++ T.unpack (report msg)
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
@@ -315,6 +316,10 @@ applyPrim NewEnv [StructVal s, EnvVal env] _ = do
     cell <- liftIO $ newIORef s
     reduce $ EnvVal $ Env cell (Just env)
 applyPrim NewEnv _ pos = error "type error in NewEnv unimplemented"
+
+applyPrim DELME_Print [val] _ = do
+    liftIO $ T.putStrLn (report val)
+    reduce $ UnitVal
 
 
 seqExprs :: (ReportValue sysval) => [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)

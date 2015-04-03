@@ -68,4 +68,6 @@ stdBindings rts = map (\(x, v) -> (intern x, v))
     , ("true", TrueVal)
     , ("false", FalseVal)
     , ("exn", rtsExnCue rts)
+
+    , ("print", PrimAp DELME_Print 1 [])
     ]

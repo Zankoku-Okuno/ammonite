@@ -47,18 +47,20 @@ showVal (RecordVal pos kw)
     | Seq.length pos == 1 && Map.null kw = parens $ showVal (head $ toList pos) <> ","
     | otherwise = parens $ commas $ (showVal <$> toList pos) <> (kv showVal <$> Map.toList kw)
 showVal (ClosureVal {}) = angles $ "closure" --FIXME show metadata
---showVal (TypeVal _) = undefined -- TODO
---showVal (AbsVal _ _) = undefined -- TODO
---showVal (ModuleVal {}) = undefined -- TODO
---showVal (CueVal _ _) = undefined -- TODO
---showVal (Subcont _) = undefined -- TODO
+showVal (TypeVal _) = error "unimplemented: show TypeVal"
+showVal (AbsVal (_, (_, Nothing)) _) = angles $ "AbsType"
+showVal (AbsVal (_, (_, Just name)) _) = angles $ "AbsType: " <> name
+showVal (ModuleVal {}) = error "unimplemented: show module"
+showVal (CueVal _ (_, Nothing)) = angles $ "Cue"
+showVal (CueVal _ (_, Just name)) = angles $ "Cue: " <> name
+showVal (Subcont _) = error "unimplemented: show subcont"
 showVal (EnvVal _) = angles "environment" -- TODO
 showVal (ExprVal e) = "`" <> showAST e
---showVal (ThunkVal) = undefined -- TODO
+showVal (ThunkVal _) = error "unimplemented: show thunk"
 showVal (PrimForm op arity args) = "<PrimForm: " <> (T.pack . show) op <> " " <> (T.pack . show) arity <> ">"
 showVal (PrimAp op arity args) = "<PrimAp: " <> (T.pack . show) op <> T.intercalate "," (map ((" "<>) . showVal) args) <> ">"
---showVal (SysVal _) = undefined -- TODO
---showVal (SysOp {}) = undefined -- TODO
+showVal (SysVal _) = error "unimplemented: show sysval"
+showVal (SysOp {}) = error "unimplemented: show sysop"
 
 showAST :: ReportValue sysval => Expr sysval -> Text
 showAST (Lit x, _) = showVal x
