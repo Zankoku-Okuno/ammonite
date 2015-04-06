@@ -129,3 +129,4 @@ Not the structural types, though.
 
 You know, I could have closures that are mixed operative/applicative just by flipping the [] and Either constructors.
 Mixed for primitives is a little harder, but not that difficult.
+

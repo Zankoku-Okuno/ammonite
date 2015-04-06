@@ -32,7 +32,7 @@ elaborate (Name x, pos) = do
     case m_val of
         Nothing -> do
             tag <- rts rtsScopeExn
-            let msg = StrVal $ "not in scope: " <> report x
+            let msg = ExprVal $ (Name x, pos)
             raise tag msg pos --FIXME I need a gensym for scope error, pass that as part of a tuple, and probably part of an abstype
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
@@ -235,13 +235,13 @@ raise tag msg pos = do
     case mark of
         Nothing -> error $ --TODO
                "unimplemented: unhandled exception\n"
-            ++ stackTrace above ++ "\n"
+            ++ T.unpack (stackTrace above) ++ "\n"
             ++ T.unpack (report msg)
         Just (Barrier, pos) -> error $ --TODO
                "unimplemented: raise unhandled exception error"
-            ++ stackTrace below ++ "\n"
+            ++ T.unpack (stackTrace below) ++ "\n"
             ++ "some barrier\n"
-            ++ stackTrace above ++ "\n"
+            ++ T.unpack (stackTrace above) ++ "\n"
             ++ T.unpack (report msg)
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
@@ -325,7 +325,7 @@ applyPrim DELME_Print [val] _ = do
 seqExprs :: (ReportValue sysval) => [Expr sysval] -> SourceLoc -> Machine sysval (Value sysval)
 seqExprs [] _ = reduce UnitVal
 seqExprs [e] _ = elaborate e
-seqExprs (e:rest) pos = do
+seqExprs (e@(_, pos):rest) _ = do
     pushCont (BlockCont rest, pos)
     elaborate e
 

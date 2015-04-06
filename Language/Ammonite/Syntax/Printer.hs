@@ -29,6 +29,9 @@ instance ReportValue Symbol where
 instance (ReportValue sysval) => ReportValue (Value sysval) where
     report = showVal
 
+instance (ReportValue sysval) => ReportValue (ContCore sysval) where
+    report = showCont
+
 
 showVal :: ReportValue sysval => Value sysval -> Text
 showVal UnitVal = "()"
@@ -61,6 +64,31 @@ showVal (PrimForm op arity args) = "<PrimForm: " <> (T.pack . show) op <> " " <>
 showVal (PrimAp op arity args) = "<PrimAp: " <> (T.pack . show) op <> T.intercalate "," (map ((" "<>) . showVal) args) <> ">"
 showVal (SysVal _) = error "unimplemented: show sysval"
 showVal (SysOp {}) = error "unimplemented: show sysop"
+
+
+showCont :: ReportValue sysval => ContCore sysval -> Text
+showCont (StrCont before next rest) = "TODO StrCont"
+showCont (ListCont before rest) = "TODO ListCont"
+showCont (StructCont before x rest) = "TODO StructCont"
+showCont (RecordCont) = "TODO RecordCont"
+showCont (ExprCont) = "TODO ExprCont"
+showCont (ExistsCont route) = "_" <> (T.concat . map showRoute) route <> ":?"
+showCont (ExistsIndexCont v route) = showVal v <> "[_]" <> (T.concat . map showRoute) route <> ":?"
+showCont (AccessCont route) = "_" <> (T.concat . map showRoute) route
+showCont (AccessIndexCont v route) = showVal v <> "[_]" <> (T.concat . map showRoute) route
+showCont (UpdateCont route new) = "_" <> (T.concat . map showRoute) route <> ":=" <> showAST new
+showCont (UpdateIndexCont v route new) = showVal v <> "[_]" <> (T.concat . map showRoute) route <> ":=" <> showAST new
+showCont (UpdateFieldToCont v x) = showVal v <> "." <> report x <> ":=_"
+showCont (UpdateIndexToCont v i) = showVal v <> "[" <> showVal i <> "]:=_"
+showCont (OpCont e) = "(_ " <> showAST e <> ")"
+showCont (ApCont v) = "(" <> showVal v <> " _)"
+showCont (BlockCont es) = "(_; " <> T.intercalate "; " (map showAST es) <> ")"
+showCont (ThunkCont _) = "update thunk"
+showCont (BindCont p andthen) = "TODO BindCont"
+showCont (MatchCont p v andthen) = "TODO MatchCont"
+showCont Barrier = "TODO Barrier"
+showCont (CueCont cue handler) = "TODO CueCont"
+
 
 showAST :: ReportValue sysval => Expr sysval -> Text
 showAST (Lit x, _) = showVal x
@@ -112,15 +140,16 @@ showRoute (Slice start stop) =
 --FIXME add required parens, such as `({x: 1}.x:=3).x`
 
 
-stackTrace :: ReportValue sysval => Continuation sysval -> String
-stackTrace = intercalate "\n" . reverse . map goFrame
+stackTrace :: ReportValue sysval => Continuation sysval -> Text
+stackTrace = T.intercalate "\n" . reverse . map goFrame
     where
-    goFrame (EnvFrame sections) = intercalate "\n" . reverse $ map (goEnv . fst) sections
+    goFrame (EnvFrame sections) = T.intercalate "\n" . reverse $ map (goEnv . fst) sections
     goFrame (Mark cont) = goPos cont
-    goEnv = intercalate "\n" . reverse . map goPos
-    goPos (core, (file, line)) = "At line " <> show line <> " in " <> show file <> ":\n    " <> go core
-    go (CueCont cue handler) = "cue mark"
-    go _ = "something!" --TODO
+    goEnv = T.intercalate "\n" . reverse . map goPos
+    goPos (core, (file, line)) =
+           "At line " <> (T.pack . show) line
+        <> " in " <> (T.pack . show) file <> ":\n"
+        <> "    " <> showCont core
 
 
 
