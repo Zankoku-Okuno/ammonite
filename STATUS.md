@@ -107,7 +107,13 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 		[ ] first-class control
 			[*] abort
 			[*] handle
-			[ ] raising rts exceptions
+			[ ] exceptions
+				[*] exception data format
+				[*] rts raise exceptions
+				[ ] append stack traces to exception values
+				[ ] user raise exceptions
+				[ ] user discriminate between exceptions
+				[ ] unhandled exceptions
 			[ ] push barrier
 			[ ] stack guard
 			[ ] capture

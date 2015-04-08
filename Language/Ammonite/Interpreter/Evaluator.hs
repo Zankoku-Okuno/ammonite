@@ -27,13 +27,12 @@ eval prog start = Good <$> runMachine (elaborate prog) start
 
 elaborate :: (ReportValue sysval) => Expr sysval -> Machine sysval (Value sysval)
 elaborate (Lit val, _) = reduce val
-elaborate (Name x, pos) = do
+elaborate e@(Name x, pos) = do
     m_val <- lookupCurrentEnv x
     case m_val of
         Nothing -> do
-            tag <- rts rtsScopeExn
-            let msg = ExprVal $ (Name x, pos)
-            raise tag msg pos --FIXME I need a gensym for scope error, pass that as part of a tuple, and probably part of an abstype
+            tag <- rts rtsScopeError
+            raise tag (ExprVal e) pos
         Just val -> reduce val
 elaborate (ListExpr [], _) = reduce $ ListVal Seq.empty
 elaborate (ListExpr (e:es), pos) = do
@@ -94,7 +93,10 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
         elaborate e
     reduce' (ExistsIndexCont v r, pos) i =
         case v `getIndex` i of
-            Left i -> error "unimplemented: raise type error when index is not an int"
+            Left i -> do
+                tag <- rts rtsTypeError
+                let msg = mkStruct [("expected", StrVal "Int"), ("got", i)]
+                raise tag msg pos
             Right Nothing -> reduce FalseVal
             Right (Just subv) -> do
                 pushCont (ExistsCont r, pos)
@@ -103,7 +105,9 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (AccessCont (Field x:r), pos) v = do
         it <- liftIO $ v `getField` x
         case it of
-            Nothing -> error "unimplemented: raise an access error"
+            Nothing -> do
+                tag <- rts rtsAccessError
+                raise tag (ExprVal (Name x, pos)) pos
             Just subv -> do
                 pushCont (AccessCont r, pos)
                 reduce subv
@@ -112,8 +116,13 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
         elaborate e
     reduce' (AccessIndexCont v r, pos) i =
         case v `getIndex` i of
-            Left i -> error "unimplemented: raise type error when index is not an int"
-            Right Nothing -> error "unimplemented: raise an access error"
+            Left i -> do
+                tag <- rts rtsTypeError
+                let msg = mkStruct [("expected", StrVal "Int"), ("got", i)]
+                raise tag msg pos
+            Right Nothing -> do
+                tag <- rts rtsAccessError
+                raise tag i pos
             Right (Just subv) -> do
                 pushCont (AccessCont r, pos)
                 reduce subv
@@ -124,7 +133,9 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (UpdateCont (Field x:r) e', pos) v = do
         it <- liftIO $ v `getField` x
         case it of
-            Nothing -> error "unimplemented: raise an access error"
+            Nothing -> do
+                tag <- rts rtsAccessError
+                raise tag (ExprVal (Name x, pos)) pos
             Just subv -> do
                 pushCont (UpdateFieldToCont v x, pos)
                 pushCont (UpdateCont r e', pos)
@@ -134,8 +145,13 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
         elaborate i
     reduce' (UpdateIndexCont v r e', pos) i = do
         case v `getIndex` i of
-            Left i -> error "unimplemented: raise type error when index is not an int"
-            Right Nothing -> error "unimplemented: raise an update error"
+            Left i -> do
+                tag <- rts rtsTypeError
+                let msg = mkStruct [("expected", StrVal "Int"), ("got", i)]
+                raise tag msg pos
+            Right Nothing -> do
+                tag <- rts rtsAccessError
+                raise tag i pos
             Right (Just subv) -> do
                 pushCont (UpdateIndexToCont v i, pos)
                 pushCont (UpdateCont r e', pos)
@@ -143,12 +159,19 @@ reduce v = maybe (pure v) (flip reduce' v) =<< popCont
     reduce' (UpdateFieldToCont v x, pos) subv = do
         it <- liftIO $ (v `setField` x) subv
         case it of
-            Nothing -> error "unimplemented: raise an update error"
+            Nothing -> do
+                tag <- rts rtsUpdateError
+                raise tag (ExprVal (Name x, pos)) pos
             Just v' -> reduce v'
     reduce' (UpdateIndexToCont v i, pos) subv = do
         case (v `setIndex` i) subv of
-            Left i -> error "unimplemented: raise type error when index is not an int"
-            Right Nothing -> error "unimplemented: raise an access error"
+            Left i -> do
+                tag <- rts rtsTypeError
+                let msg = mkStruct [("expected", StrVal "Int"), ("got", i)]
+                raise tag msg pos
+            Right Nothing -> do
+                tag <- rts rtsUpdateError
+                raise tag i pos
             Right (Just v') -> reduce v'
     --TODO
     -- Application
@@ -200,6 +223,10 @@ opply (PrimForm op n args) next _ | n > 1 = do
     reduce (PrimForm op (n-1) (args ++ [(next, env)]))
 opply (Within op args) next pos =
     withinForm op args next pos
+opply v _ pos = do
+    tag <- rts rtsTypeError
+    let msg = mkStruct [("expected", StrVal "Callable"), ("got", v)]
+    raise tag msg pos
 
 
 apply :: (ReportValue sysval) => Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
@@ -226,6 +253,10 @@ apply (PrimAp op 1 args) next pos = do
     applyPrim op (args ++ [next]) pos
 apply (PrimAp op n args) next pos | n > 1 =
     reduce (PrimAp op (n-1) (args ++ [next]))
+apply v _ pos = do
+    tag <- rts rtsTypeError
+    let msg = mkStruct [("expected", StrVal "Callable"), ("got", v)]
+    raise tag msg pos
 
 
 raise :: (ReportValue sysval) => Value sysval -> Value sysval -> SourceLoc -> Machine sysval (Value sysval)
@@ -236,12 +267,14 @@ raise tag msg pos = do
         Nothing -> error $ --TODO
                "unimplemented: unhandled exception\n"
             ++ T.unpack (stackTrace above) ++ "\n"
+            ++ T.unpack (report tag) ++ "\n"
             ++ T.unpack (report msg)
         Just (Barrier, pos) -> error $ --TODO
                "unimplemented: raise unhandled exception error"
             ++ T.unpack (stackTrace below) ++ "\n"
             ++ "some barrier\n"
             ++ T.unpack (stackTrace above) ++ "\n"
+            ++ T.unpack (report tag) ++ "\n"
             ++ T.unpack (report msg)
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
@@ -291,7 +324,11 @@ applyPrim :: (ReportValue sysval) => Prim -> [Value sysval] -> SourceLoc -> Mach
 applyPrim Eval [ExprVal body, EnvVal env] _ = do
     swapEnv env
     elaborate body
-applyPrim Eval _ _ = error "unimplemented: type error in elaborate"
+applyPrim Eval [a, b] pos = do
+    tag <- rts rtsTypeError
+    let msg = mkStruct [ ("expected", StrVal "(Expr, Env)")
+                       , ("got", RecordVal (Seq.fromList [a, b]) Map.empty)]
+    raise tag msg pos
 
 applyPrim NewCue [UnitVal] pos = do
     c <- newCue
@@ -299,15 +336,21 @@ applyPrim NewCue [UnitVal] pos = do
 applyPrim NewCue [StrVal desc] pos = do
     c <- newCue
     reduce $ CueVal c (Just pos, Just desc)
-applyPrim NewCue _ pos = error "type error in newCue unimplemented"
+applyPrim NewCue [v] pos = do
+    tag <- rts rtsTypeError
+    let msg = mkStruct [("expected", StrVal "() | Str"), ("got", v)]
+    raise tag msg pos
 
 applyPrim Handle [cue, handler] _ =
     reduce $ Within Handle [cue, handler]
-applyPrim Handle _ pos = error "type error in newCue unimplemented"
 
 applyPrim Add [NumVal a, NumVal b] _ =
     reduce $ NumVal (a+b)
-applyPrim Add _ pos = error "type error in add unimplemented"
+applyPrim Add [a, b] pos = do
+    tag <- rts rtsTypeError
+    let msg = mkStruct [ ("expected", StrVal "(Num, Num)")
+                       , ("got", RecordVal (Seq.fromList [a, b]) Map.empty)]
+    raise tag msg pos
 
 applyPrim NewEnv [StructVal s, UnitVal] _ = do
     cell <- liftIO $ newIORef s
@@ -315,7 +358,11 @@ applyPrim NewEnv [StructVal s, UnitVal] _ = do
 applyPrim NewEnv [StructVal s, EnvVal env] _ = do
     cell <- liftIO $ newIORef s
     reduce $ EnvVal $ Env cell (Just env)
-applyPrim NewEnv _ pos = error "type error in NewEnv unimplemented"
+applyPrim NewEnv [a, b] pos = do
+    tag <- rts rtsTypeError
+    let msg = mkStruct [ ("expected", StrVal "({...}, () | Env)")
+                       , ("got", RecordVal (Seq.fromList [a, b]) Map.empty)]
+    raise tag msg pos
 
 applyPrim DELME_Print [val] _ = do
     liftIO $ T.putStrLn (report val)

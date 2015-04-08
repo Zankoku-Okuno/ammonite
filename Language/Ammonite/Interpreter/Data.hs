@@ -7,6 +7,7 @@ module Language.Ammonite.Interpreter.Data
     , setField
     , getIndex
     , setIndex
+    , mkStruct
     , mkAbortVal
     ) where
 
@@ -91,9 +92,12 @@ seqUpdate xs i v' | 0 <= i && i < Seq.length xs = Just $ Seq.update i v' xs
                   | otherwise = Nothing
 
 
+mkStruct :: [(String, Value sysval)] -> Value sysval
+mkStruct = StructVal . Map.fromList . map (\(k, v) -> (intern k, v))
+
 mkAbortVal :: Value sysval -> Value sysval -> Value sysval -> Value sysval
-mkAbortVal cue handler v = StructVal $ Map.fromList
-    [ (intern "cue", cue)
-    , (intern "handler", handler)
-    , (intern "val", v)
+mkAbortVal cue handler v = mkStruct
+    [ ("cue", cue)
+    , ("handler", handler)
+    , ("val", v)
     ]

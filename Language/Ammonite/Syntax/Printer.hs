@@ -1,4 +1,4 @@
-{-#LANGUAGE OverloadedStrings #-}
+{-#LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Language.Ammonite.Syntax.Printer
     ( showAST --FIXME use a pretty-printer
     , ReportValue(..)
@@ -26,6 +26,11 @@ instance ReportValue () where
 instance ReportValue Symbol where
     report = T.pack . unintern
 
+instance ReportValue SourceLoc where
+    report (file, line) =
+           "line " <> (T.pack . show) line
+        <> " in " <> (T.pack . show) file
+
 instance (ReportValue sysval) => ReportValue (Value sysval) where
     report = showVal
 
@@ -50,7 +55,10 @@ showVal (RecordVal pos kw)
     | Seq.length pos == 1 && Map.null kw = parens $ showVal (head $ toList pos) <> ","
     | otherwise = parens $ commas $ (showVal <$> toList pos) <> (kv showVal <$> Map.toList kw)
 showVal (ClosureVal {}) = angles $ "closure" --FIXME show metadata
-showVal (TypeVal _) = error "unimplemented: show TypeVal"
+showVal (TypeVal (_, (Nothing, Nothing))) = "<TypeVal>"
+showVal (TypeVal (_, (Nothing, Just desc))) = "<TypeVal: " <> desc <> ">"
+showVal (TypeVal (_, (Just loc, Nothing))) = "<TypeVal def'd at " <> report loc <> ">"
+showVal (TypeVal (_, (Just loc, Just desc))) = "<TypeVal: " <> desc <> " def'd at " <> report loc <> ">"
 showVal (AbsVal (_, (_, Nothing)) _) = angles $ "AbsType"
 showVal (AbsVal (_, (_, Just name)) _) = angles $ "AbsType: " <> name
 showVal (ModuleVal {}) = error "unimplemented: show module"
@@ -146,9 +154,8 @@ stackTrace = T.intercalate "\n" . reverse . map goFrame
     goFrame (EnvFrame sections) = T.intercalate "\n" . reverse $ map (goEnv . fst) sections
     goFrame (Mark cont) = goPos cont
     goEnv = T.intercalate "\n" . reverse . map goPos
-    goPos (core, (file, line)) =
-           "At line " <> (T.pack . show) line
-        <> " in " <> (T.pack . show) file <> ":\n"
+    goPos (core, loc) =
+           "At " <> report loc <> ":\n"
         <> "    " <> showCont core
 
 

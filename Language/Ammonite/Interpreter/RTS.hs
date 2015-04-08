@@ -19,18 +19,30 @@ import qualified Data.Map as Map
 data RTS sysval = RTS
     { rtsExnCue :: Value sysval
     , rtsExnType :: Value sysval
-    , rtsScopeExn :: Value sysval
+    , rtsScopeError :: Value sysval
+    , rtsAccessError :: Value sysval
+    , rtsUpdateError :: Value sysval
+    , rtsTypeError :: Value sysval
+    , rtsUnhandledExn :: Value sysval
     }
 
 newRTS :: GensymSource -> (RTS sysval, GensymSource)
 newRTS source = flip runState source $ do
     exnCue <- gensym
     exnType <- gensym
-    scopeExn <- gensym
+    scopeError <- gensym
+    accessError <- gensym
+    updateError <- gensym
+    typeError <- gensym
+    unhandledExn <- gensym
     pure $ RTS
         { rtsExnCue = CueVal exnCue (Nothing, Just "EXN")
         , rtsExnType = TypeVal (exnType, (Nothing, Just "Exn"))
-        , rtsScopeExn = TypeVal (scopeExn, (Nothing, Just "ScopeExn"))
+        ,     rtsScopeError   = TypeVal (scopeError, (Nothing, Just "ScopeError"))
+        ,     rtsAccessError  = TypeVal (accessError, (Nothing, Just "AccessError"))
+        ,     rtsUpdateError  = TypeVal (updateError, (Nothing, Just "UpdateError"))
+        ,     rtsTypeError    = TypeVal (typeError, (Nothing, Just "TypeError"))
+        ,     rtsUnhandledExn = TypeVal (unhandledExn, (Nothing, Just "UnhandledExn"))
         }
 
 
@@ -39,7 +51,7 @@ mkExnVal :: RTS sysval -> Value sysval -> Value sysval -> Value sysval -> Value 
 mkExnVal rts tag trace msg =
     let TypeVal exnType = rtsExnType rts
     in AbsVal exnType RecordVal
-        { rvPos = Seq.fromList [tag] -- TODO ...and gensyms for each subtype of builtin exception
+        { rvPos = Seq.fromList [tag]
         , rvKw = Map.fromList
             [ (intern "trace", trace)
             , (intern "msg", msg)
