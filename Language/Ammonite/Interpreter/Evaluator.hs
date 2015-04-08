@@ -264,22 +264,23 @@ raise tag msg pos = do
     c@(CueVal cue meta) <- rts rtsExnCue
     (above, mark, below) <- abort cue
     case mark of
-        Nothing -> error $ --TODO
+        Nothing -> error . T.unpack $ --TODO
                "unimplemented: unhandled exception\n"
-            ++ T.unpack (report tag) ++ "\n"
-            ++ T.unpack (report msg) ++ "\n"
-            ++ T.unpack (stackTrace above)
-        Just (Barrier, pos) -> error $ --TODO
+            <> report tag <> "\n"
+            <> report msg <> "\n"
+            <> stackTrace above
+        Just (Barrier, pos) -> error . T.unpack $ --TODO
                "unimplemented: raise unhandled exception error"
-            ++ T.unpack (report tag) ++ "\n"
-            ++ T.unpack (report msg) ++ "\n"
-            ++ T.unpack (stackTrace above) ++ "\n"
-            ++ "some barrier" ++ "\n"
-            ++ T.unpack (stackTrace below)
+            <> report tag <> "\n"
+            <> report msg <> "\n"
+            <> stackTrace above <> "\n"
+            <> "some barrier" <> "\n"
+            <> stackTrace below
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
             new <- rts mkExnVal 
-            let exn = new tag (Subcont above) msg
+            addTrace <- rts appendTrace
+            let (Just exn) = new tag msg `addTrace` above --TODO handle the error case
             apply handler (mkAbortVal c handler exn) pos
 
 
