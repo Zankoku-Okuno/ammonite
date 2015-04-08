@@ -266,16 +266,16 @@ raise tag msg pos = do
     case mark of
         Nothing -> error $ --TODO
                "unimplemented: unhandled exception\n"
-            ++ T.unpack (stackTrace above) ++ "\n"
             ++ T.unpack (report tag) ++ "\n"
-            ++ T.unpack (report msg)
+            ++ T.unpack (report msg) ++ "\n"
+            ++ T.unpack (stackTrace above)
         Just (Barrier, pos) -> error $ --TODO
                "unimplemented: raise unhandled exception error"
-            ++ T.unpack (stackTrace below) ++ "\n"
-            ++ "some barrier\n"
-            ++ T.unpack (stackTrace above) ++ "\n"
             ++ T.unpack (report tag) ++ "\n"
-            ++ T.unpack (report msg)
+            ++ T.unpack (report msg) ++ "\n"
+            ++ T.unpack (stackTrace above) ++ "\n"
+            ++ "some barrier" ++ "\n"
+            ++ T.unpack (stackTrace below)
         Just (CueCont _ handler, pos) -> do
             --FIXME find and run stack guards
             new <- rts mkExnVal 

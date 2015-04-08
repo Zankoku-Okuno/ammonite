@@ -19,7 +19,7 @@ type SourceLoc = (SourceFile, SourceLine)
 type DefMetadata = (Maybe SourceLoc, Maybe Text)
 
 type Name = Symbol --FIXME this should be a newtype w/ smart constructors/deconstructors
-type TypeTag = (Gensym, DefMetadata)
+type Tag = (Gensym, DefMetadata)
 data Env sysval = Env
     { envBindings :: IORef (Map Name (Value sysval))
     , envParent :: Maybe (Env sysval)
@@ -53,8 +53,8 @@ data Value sysval =
         --, opMetadata :: DefMetadata --TODO this metadata really seems to be outside the lambda
         }
     -- First-class Data Types
-    | TypeVal TypeTag
-    | AbsVal TypeTag (Value sysval)
+    | TagVal Tag
+    | AbsVal Tag (Value sysval)
     -- First-classs Modules
     | ModuleVal [ModuleItem sysval] DefMetadata
     -- First-class Control

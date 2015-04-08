@@ -110,6 +110,7 @@ FIXME: changes lists to seqs where xs ++ [x] occurs
 			[ ] exceptions
 				[*] exception data format
 				[*] rts raise exceptions
+				[ ] stack trace format
 				[ ] append stack traces to exception values
 				[ ] user raise exceptions
 				[ ] user discriminate between exceptions

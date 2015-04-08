@@ -37,19 +37,19 @@ newRTS source = flip runState source $ do
     unhandledExn <- gensym
     pure $ RTS
         { rtsExnCue = CueVal exnCue (Nothing, Just "EXN")
-        , rtsExnType = TypeVal (exnType, (Nothing, Just "Exn"))
-        ,     rtsScopeError   = TypeVal (scopeError, (Nothing, Just "ScopeError"))
-        ,     rtsAccessError  = TypeVal (accessError, (Nothing, Just "AccessError"))
-        ,     rtsUpdateError  = TypeVal (updateError, (Nothing, Just "UpdateError"))
-        ,     rtsTypeError    = TypeVal (typeError, (Nothing, Just "TypeError"))
-        ,     rtsUnhandledExn = TypeVal (unhandledExn, (Nothing, Just "UnhandledExn"))
+        , rtsExnType = TagVal (exnType, (Nothing, Just "Exn"))
+        ,     rtsScopeError   = TagVal (scopeError, (Nothing, Just "ScopeError"))
+        ,     rtsAccessError  = TagVal (accessError, (Nothing, Just "AccessError"))
+        ,     rtsUpdateError  = TagVal (updateError, (Nothing, Just "UpdateError"))
+        ,     rtsTypeError    = TagVal (typeError, (Nothing, Just "TypeError"))
+        ,     rtsUnhandledExn = TagVal (unhandledExn, (Nothing, Just "UnhandledExn"))
         }
 
 
 
 mkExnVal :: RTS sysval -> Value sysval -> Value sysval -> Value sysval -> Value sysval
 mkExnVal rts tag trace msg =
-    let TypeVal exnType = rtsExnType rts
+    let TagVal exnType = rtsExnType rts
     in AbsVal exnType RecordVal
         { rvPos = Seq.fromList [tag]
         , rvKw = Map.fromList

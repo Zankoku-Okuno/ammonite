@@ -55,10 +55,10 @@ showVal (RecordVal pos kw)
     | Seq.length pos == 1 && Map.null kw = parens $ showVal (head $ toList pos) <> ","
     | otherwise = parens $ commas $ (showVal <$> toList pos) <> (kv showVal <$> Map.toList kw)
 showVal (ClosureVal {}) = angles $ "closure" --FIXME show metadata
-showVal (TypeVal (_, (Nothing, Nothing))) = "<TypeVal>"
-showVal (TypeVal (_, (Nothing, Just desc))) = "<TypeVal: " <> desc <> ">"
-showVal (TypeVal (_, (Just loc, Nothing))) = "<TypeVal def'd at " <> report loc <> ">"
-showVal (TypeVal (_, (Just loc, Just desc))) = "<TypeVal: " <> desc <> " def'd at " <> report loc <> ">"
+showVal (TagVal (_, (Nothing, Nothing))) = "<Tag>"
+showVal (TagVal (_, (Nothing, Just desc))) = "<Tag: " <> desc <> ">"
+showVal (TagVal (_, (Just loc, Nothing))) = "<Tag def'd at " <> report loc <> ">"
+showVal (TagVal (_, (Just loc, Just desc))) = "<Tag: " <> desc <> " def'd at " <> report loc <> ">"
 showVal (AbsVal (_, (_, Nothing)) _) = angles $ "AbsType"
 showVal (AbsVal (_, (_, Just name)) _) = angles $ "AbsType: " <> name
 showVal (ModuleVal {}) = error "unimplemented: show module"
@@ -144,16 +144,16 @@ showRoute (Slice start stop) =
     in bracks $ mconcat [showStart, "...", showStop]
 
 --FIXME do proper indentation
---FIXME elimiate redundant parens: Ap as element of ListExpr, StructExpr, RecordExpr, Block, interpoaltion into a string
+--FIXME elimiate redundant parens: Ap as element of ListExpr, StructExpr, RecordExpr, Block, interpolation into a string
 --FIXME add required parens, such as `({x: 1}.x:=3).x`
 
 
 stackTrace :: ReportValue sysval => Continuation sysval -> Text
-stackTrace = T.intercalate "\n" . reverse . map goFrame
+stackTrace = T.intercalate "\n" . map goFrame
     where
-    goFrame (EnvFrame sections) = T.intercalate "\n" . reverse $ map (goEnv . fst) sections
+    goFrame (EnvFrame sections) = T.intercalate "\n" $ map (goEnv . fst) sections
     goFrame (Mark cont) = goPos cont
-    goEnv = T.intercalate "\n" . reverse . map goPos
+    goEnv = T.intercalate "\n" . map goPos
     goPos (core, loc) =
            "At " <> report loc <> ":\n"
         <> "    " <> showCont core
